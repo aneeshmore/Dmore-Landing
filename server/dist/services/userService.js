@@ -5,13 +5,29 @@ const drizzle_orm_1 = require("drizzle-orm");
 const db_1 = require("../db");
 const schema_1 = require("../db/schema");
 const password_1 = require("../utils/password");
-const findUserByEmail = (email) => db_1.db.query.users.findFirst({
-    where: (0, drizzle_orm_1.eq)(schema_1.users.email, email),
-});
+const findUserByEmail = async (email) => {
+    try {
+        return await db_1.db.query.users.findFirst({
+            where: (0, drizzle_orm_1.eq)(schema_1.users.email, email),
+        });
+    }
+    catch (error) {
+        console.error("Database query failed:", error);
+        return null;
+    }
+};
 exports.findUserByEmail = findUserByEmail;
-const findUserById = (id) => db_1.db.query.users.findFirst({
-    where: (0, drizzle_orm_1.eq)(schema_1.users.id, id),
-});
+const findUserById = async (id) => {
+    try {
+        return await db_1.db.query.users.findFirst({
+            where: (0, drizzle_orm_1.eq)(schema_1.users.id, id),
+        });
+    }
+    catch (error) {
+        console.error("Database query failed:", error);
+        return null;
+    }
+};
 exports.findUserById = findUserById;
 const createUser = async (input) => {
     const existing = await (0, exports.findUserByEmail)(input.email);
@@ -36,11 +52,19 @@ const authenticateUser = async (email, password) => {
     return user;
 };
 exports.authenticateUser = authenticateUser;
-const listUsers = () => db_1.db.query.users.findMany({
-    columns: {
-        password: false,
-    },
-});
+const listUsers = async () => {
+    try {
+        return await db_1.db.query.users.findMany({
+            columns: {
+                password: false,
+            },
+        });
+    }
+    catch (error) {
+        console.error("Could not fetch users from database:", error);
+        return [];
+    }
+};
 exports.listUsers = listUsers;
 const updateUser = async (id, data) => {
     // ✅ FIX: Email uniqueness check moved inside function

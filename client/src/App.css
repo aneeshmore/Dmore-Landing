@@ -254,6 +254,77 @@
   background: #F3F4F6;
 }
 
+.profile-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 120;
+  padding: 1rem;
+}
+
+.profile-modal {
+  width: min(420px, 100%);
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 14px;
+  box-shadow: 0 22px 42px rgba(15, 23, 42, 0.2);
+  padding: 1rem;
+}
+
+.profile-modal h3 {
+  margin: 0 0 0.9rem;
+  color: #0F1724;
+  text-align: left;
+}
+
+.profile-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.profile-modal-form input {
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  border-radius: 10px;
+  border: 1px solid #E5E7EB;
+  background: #F8FAFC;
+}
+
+.profile-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+}
+
+.profile-modal-cancel,
+.profile-modal-save {
+  border: none;
+  border-radius: 8px;
+  padding: 0.55rem 0.9rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.profile-modal-cancel {
+  background: #F3F4F6;
+  color: #0F1724;
+}
+
+.profile-modal-save {
+  background: #2563EB;
+  color: #FFFFFF;
+}
+
+.profile-modal-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .btn {
   border: none;
   border-radius: 12px;
@@ -2316,6 +2387,22 @@
   margin-bottom: 10px;
 }
 
+.payment-success-container {
+  max-width: 760px;
+  text-align: center;
+}
+
+.payment-success-message {
+  margin-top: 8px;
+  font-size: 1.05rem;
+  color: #0f172a;
+  background: #ecfdf5;
+  border: 1px solid #86efac;
+  border-radius: 12px;
+  padding: 18px 20px;
+  font-weight: 600;
+}
+
 @media (max-width: 900px) {
   .payment-content {
     grid-template-columns: 1fr;
@@ -2383,4 +2470,185 @@
 
 .error {
   color: red;
+}
+
+@media (max-width: 1200px) {
+  .content {
+    padding: 0 1.25rem 3rem;
+  }
+
+  .navbar {
+    padding: 1rem 1.25rem;
+  }
+
+  .payment-container {
+    padding: 24px;
+  }
+}
+
+@media (max-width: 992px) {
+  .nav-links {
+    gap: 0.55rem;
+    margin: 0 0.8rem;
+  }
+
+  .nav-link {
+    padding: 0.35rem 0.55rem;
+    font-size: 0.9rem;
+  }
+
+  .login-container {
+    grid-template-columns: 1fr;
+    max-width: 640px;
+  }
+
+  .login-left {
+    display: none;
+  }
+
+  .login-card {
+    padding: 32px 24px;
+  }
+
+  .register-card {
+    max-width: 760px;
+    padding: 2rem;
+  }
+
+  .form-grid-register {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .basic-pricing-grid,
+  .pro-pricing-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .navbar {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem;
+  }
+
+  .brand {
+    min-width: 0;
+    width: calc(100% - 120px);
+  }
+
+  .brand-name {
+    font-size: 0.95rem;
+  }
+
+  .brand-sub {
+    font-size: 0.75rem;
+  }
+
+  .nav-actions {
+    margin-left: auto;
+  }
+
+  .nav-links {
+    order: 3;
+    width: 100%;
+    margin: 0;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .profile-name {
+    max-width: 92px;
+  }
+
+  .profile-dropdown {
+    right: 0;
+    min-width: 170px;
+  }
+
+  .profile-modal {
+    max-width: 100%;
+    padding: 0.9rem;
+  }
+
+  .profile-modal-actions {
+    justify-content: stretch;
+  }
+
+  .profile-modal-cancel,
+  .profile-modal-save {
+    flex: 1;
+  }
+
+  .form-grid-register {
+    grid-template-columns: 1fr;
+  }
+
+  .register-card {
+    padding: 1.4rem;
+  }
+
+  .payment-page {
+    padding: 16px 12px;
+  }
+
+  .payment-container {
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .payment-header h1 {
+    font-size: 1.4rem;
+  }
+
+  .payment-content {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .plan-section {
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .plan-types {
+    flex-direction: column;
+  }
+
+  .period-options {
+    grid-template-columns: 1fr;
+  }
+
+  .basic-pricing-grid,
+  .pro-pricing-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .content {
+    padding: 0 0.75rem 2rem;
+  }
+
+  .site-footer {
+    font-size: 0.82rem;
+    padding-bottom: 0.8rem;
+  }
+
+  .login-wrapper {
+    padding: 12px;
+  }
+
+  .login-card {
+    padding: 24px 16px;
+  }
+
+  .login-card h2 {
+    font-size: 1.3rem;
+  }
+
+  .profile-trigger {
+    padding-right: 0.45rem;
+  }
 }

@@ -7,6 +7,7 @@ import { z, ZodError } from "zod";
 import { db } from "../db";
 import { users } from "../db/schema";
 import { eq } from "drizzle-orm";
+import { findUserById } from "../services/userService";
 
 const router = Router();
 
@@ -82,6 +83,20 @@ router.post(
       }
 
       const { planType, period } = createOrderSchema.parse(req.body);
+      const requestingUser = await findUserById(req.user!.userId);
+
+      if (!requestingUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (
+        requestingUser.role === "user" &&
+        requestingUser.accountStatus !== "pending_payment"
+      ) {
+        return res.status(403).json({
+          message: "Payment successful. Admin will contact you soon.",
+        });
+      }
 
       const amount = pricing[planType][period];
 

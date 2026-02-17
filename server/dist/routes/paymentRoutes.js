@@ -12,6 +12,7 @@ const zod_1 = require("zod");
 const db_1 = require("../db");
 const schema_1 = require("../db/schema");
 const drizzle_orm_1 = require("drizzle-orm");
+const userService_1 = require("../services/userService");
 const router = (0, express_1.Router)();
 /* ==========================
    RAZORPAY INSTANCE
@@ -65,6 +66,16 @@ router.post("/create-order", auth_1.authenticate, async (req, res) => {
             });
         }
         const { planType, period } = createOrderSchema.parse(req.body);
+        const requestingUser = await (0, userService_1.findUserById)(req.user.userId);
+        if (!requestingUser) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        if (requestingUser.role === "user" &&
+            requestingUser.accountStatus !== "pending_payment") {
+            return res.status(403).json({
+                message: "Payment successful. Admin will contact you soon.",
+            });
+        }
         const amount = pricing[planType][period];
         if (!amount) {
             return res.status(400).json({
