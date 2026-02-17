@@ -36,6 +36,7 @@ export const users = pgTable("users", {
   isActive: boolean("is_active").notNull().default(true),
   // New subscription fields
   domain: text("domain"),
+  databaseUrl: text("database_url"),
   numberOfUsers: integer("number_of_users").default(1),
   planType: planTypeEnum("plan_type"),
 

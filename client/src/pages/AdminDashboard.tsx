@@ -7,11 +7,15 @@ import "./AdminDashboard.css";
 
 interface EditFormState {
   name: string;
+  email: string;
   mobile: string;
   companyName: string;
   companyAddress: string;
   domain: string;
+  databaseUrl: string;
   numberOfUsers: string;
+  planType: string;
+  subscriptionDuration: string;
 }
 
 const AdminDashboard = () => {
@@ -25,18 +29,39 @@ const AdminDashboard = () => {
   const [editLoading, setEditLoading] = useState(false);
   const [editForm, setEditForm] = useState<EditFormState>({
     name: "",
+    email: "",
     mobile: "",
     companyName: "",
     companyAddress: "",
     domain: "",
+    databaseUrl: "",
     numberOfUsers: "1",
+    planType: "basic",
+    subscriptionDuration: "monthly",
+  });
+
+  const [isAddTenantModalOpen, setIsAddTenantModalOpen] = useState(false);
+  const [addTenantLoading, setAddTenantLoading] = useState(false);
+  const [addTenantForm, setAddTenantForm] = useState({
+    tenantId: "",
+    databaseUrl: "",
+    name: "",
+    email: "",
+    password: "",
+    mobile: "",
+    companyName: "",
+    companyAddress: "",
+    domain: "",
+    planType: "basic",
+    subscriptionDuration: "monthly",
+    numberOfUsers: "1"
   });
 
   const fetchUsers = async () => {
     setLoading(true);
     setError("");
     try {
-      const { data } = await api.get("/users");
+      const { data } = await api.get("/admin/registered-users");
       setUsers(data.users || []);
     } catch {
       setError("Unable to load users.");
@@ -68,11 +93,15 @@ const AdminDashboard = () => {
     setEditUserId(entry.id);
     setEditForm({
       name: entry.name || "",
+      email: entry.email || "",
       mobile: entry.mobile || "",
       companyName: entry.companyName || "",
       companyAddress: entry.companyAddress || "",
       domain: entry.domain || "",
+      databaseUrl: entry.databaseUrl || "",
       numberOfUsers: String(entry.numberOfUsers ?? 1),
+      planType: entry.planType || "basic",
+      subscriptionDuration: entry.subscriptionDuration || "monthly",
     });
     setIsEditModalOpen(true);
   };
@@ -97,11 +126,15 @@ const AdminDashboard = () => {
     try {
       await api.put(`/users/${editUserId}`, {
         name: editForm.name,
+        email: editForm.email,
         mobile: editForm.mobile,
         companyName: editForm.companyName,
         companyAddress: editForm.companyAddress,
         domain: editForm.domain,
+        databaseUrl: editForm.databaseUrl,
         numberOfUsers,
+        planType: editForm.planType,
+        subscriptionDuration: editForm.subscriptionDuration,
       });
       showToast("User details updated successfully", "success");
       closeEditModal();
@@ -138,6 +171,38 @@ const AdminDashboard = () => {
   const activeUsersCount = users.filter(
     (entry) => entry.isActive !== false,
   ).length;
+
+  const handleAddTenant = async (e: FormEvent) => {
+    e.preventDefault();
+    setAddTenantLoading(true);
+    try {
+      const { data } = await api.post("/admin/add-tenant", addTenantForm);
+      showToast(data.message || "Tenant registered successfully", "success");
+      setIsAddTenantModalOpen(false);
+      setAddTenantForm({
+        tenantId: "",
+        databaseUrl: "",
+        name: "",
+        email: "",
+        password: "",
+        mobile: "",
+        companyName: "",
+        companyAddress: "",
+        domain: "",
+        planType: "basic",
+        subscriptionDuration: "monthly",
+        numberOfUsers: "1"
+      });
+    } catch (err: any) {
+      showToast(
+        err?.response?.data?.message || "Failed to register tenant.",
+        "error"
+      );
+    } finally {
+      setAddTenantLoading(false);
+    }
+  };
+
   const inactiveUsersCount = users.filter(
     (entry) => entry.isActive === false,
   ).length;
@@ -224,6 +289,13 @@ const AdminDashboard = () => {
 
             <div className="header-actions">
               <button
+                className="btn-action btn-export"
+                onClick={() => setIsAddTenantModalOpen(true)}
+              >
+                + Add New Client
+              </button>
+
+              <button
                 className="btn-action"
                 onClick={fetchUsers}
                 disabled={loading}
@@ -251,6 +323,7 @@ const AdminDashboard = () => {
                     <th>Mobile</th>
                     <th>Company</th>
                     <th>Domain</th>
+                    <th>Database URL</th>
                     <th>Users</th>
                     <th>Plan</th>
                     <th>Duration</th>
@@ -316,6 +389,16 @@ const AdminDashboard = () => {
                       </td>
 
                       <td>
+                        {entry.databaseUrl ? (
+                          <span className="domain-text" title={entry.databaseUrl}>
+                            {entry.databaseUrl.length > 30 ? entry.databaseUrl.substring(0, 30) + "..." : entry.databaseUrl}
+                          </span>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+
+                      <td>
                         <span className="users-count">
                           {entry.numberOfUsers ?? 1}
                         </span>
@@ -323,9 +406,7 @@ const AdminDashboard = () => {
 
                       <td>
                         <span
-                          className={`plan-badge ${
-                            entry.planType === "pro" ? "plan-pro" : "plan-basic"
-                          }`}
+                          className={`plan-badge ${entry.planType === "pro" ? "plan-pro" : "plan-basic"}`}
                         >
                           {entry.planType || "basic"}
                         </span>
@@ -343,9 +424,7 @@ const AdminDashboard = () => {
                             type="button"
                             role="switch"
                             aria-checked={entry.isActive !== false}
-                            className={`status-switch ${
-                              entry.isActive !== false ? "on" : "off"
-                            }`}
+                            className={`status-switch ${entry.isActive !== false ? "on" : "off"}`}
                             onClick={() => handleToggleUserStatus(entry)}
                           >
                             <span className="status-switch-thumb" />
@@ -357,34 +436,20 @@ const AdminDashboard = () => {
                       </td>
 
                       <td>
-                        <span
-                          className={`toggle-label ${
-                            entry.accountStatus === "active"
-                              ? "active"
-                              : "disabled"
-                          }`}
-                        >
+                        <span className={`toggle-label ${entry.accountStatus === "active" ? "active" : "disabled"}`}>
                           {entry.accountStatus}
                         </span>
                       </td>
 
                       <td>
-                        <span
-                          className={`payment-status-badge ${
-                            entry.renewalDate ? "completed" : "pending"
-                          }`}
-                        >
+                        <span className={`payment-status-badge ${entry.renewalDate ? "completed" : "pending"}`}>
                           {entry.renewalDate ? "Completed" : "Pending"}
                         </span>
                       </td>
 
                       <td>
                         <span className="date-text">
-                          {entry.createdAt
-                            ? new Date(
-                                entry.createdAt as string,
-                              ).toLocaleDateString()
-                            : "-"}
+                          {entry.createdAt ? new Date(entry.createdAt as string).toLocaleDateString() : "-"}
                         </span>
                       </td>
 
@@ -419,91 +484,347 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {isEditModalOpen && (
-        <div className="admin-modal-backdrop">
-          <div className="admin-modal">
-            <h3>Edit User</h3>
-            <form className="admin-modal-form" onSubmit={handleEditSave}>
-              <input
-                type="text"
-                placeholder="Name"
-                value={editForm.name}
-                onChange={(e) =>
-                  setEditForm((prev) => ({ ...prev, name: e.target.value }))
-                }
-                required
-              />
-              <input
-                type="text"
-                placeholder="Mobile"
-                value={editForm.mobile}
-                onChange={(e) =>
-                  setEditForm((prev) => ({ ...prev, mobile: e.target.value }))
-                }
-              />
-              <input
-                type="text"
-                placeholder="Company Name"
-                value={editForm.companyName}
-                onChange={(e) =>
-                  setEditForm((prev) => ({
-                    ...prev,
-                    companyName: e.target.value,
-                  }))
-                }
-              />
-              <input
-                type="text"
-                placeholder="Company Address"
-                value={editForm.companyAddress}
-                onChange={(e) =>
-                  setEditForm((prev) => ({
-                    ...prev,
-                    companyAddress: e.target.value,
-                  }))
-                }
-              />
-              <input
-                type="text"
-                placeholder="Domain"
-                value={editForm.domain}
-                onChange={(e) =>
-                  setEditForm((prev) => ({ ...prev, domain: e.target.value }))
-                }
-              />
-              <input
-                type="number"
-                placeholder="Number of Users"
-                value={editForm.numberOfUsers}
-                onChange={(e) =>
-                  setEditForm((prev) => ({
-                    ...prev,
-                    numberOfUsers: e.target.value,
-                  }))
-                }
-                min={1}
-                required
-              />
-              <div className="admin-modal-actions">
-                <button
-                  type="button"
-                  className="btn-action"
-                  onClick={closeEditModal}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn-action btn-export"
-                  disabled={editLoading}
-                >
-                  {editLoading ? "Saving..." : "Save"}
-                </button>
-              </div>
-            </form>
+      {
+        isEditModalOpen && (
+          <div className="admin-modal-backdrop">
+            <div className="admin-modal">
+              <h3>Edit User</h3>
+              <form className="admin-modal-form" onSubmit={handleEditSave}>
+                <div className="form-group">
+                  <label>Client Name</label>
+                  <input
+                    type="text"
+                    placeholder="Full Name"
+                    value={editForm.name}
+                    onChange={(e) =>
+                      setEditForm((prev) => ({ ...prev, name: e.target.value }))
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Email Address</label>
+                    <input
+                      type="email"
+                      placeholder="Email"
+                      value={editForm.email}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({ ...prev, email: e.target.value }))
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Mobile Number</label>
+                    <input
+                      type="text"
+                      placeholder="Mobile"
+                      value={editForm.mobile}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({ ...prev, mobile: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Company Name</label>
+                  <input
+                    type="text"
+                    placeholder="Company Name"
+                    value={editForm.companyName}
+                    onChange={(e) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        companyName: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Company Address</label>
+                  <input
+                    type="text"
+                    placeholder="Company Address"
+                    value={editForm.companyAddress}
+                    onChange={(e) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        companyAddress: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Subdomain</label>
+                    <input
+                      type="text"
+                      placeholder="Domain"
+                      value={editForm.domain}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({ ...prev, domain: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Database URL</label>
+                    <input
+                      type="text"
+                      placeholder="Database URL"
+                      value={editForm.databaseUrl}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({ ...prev, databaseUrl: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Plan Type</label>
+                    <select
+                      value={editForm.planType}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({ ...prev, planType: e.target.value }))
+                      }
+                    >
+                      <option value="basic">Basic</option>
+                      <option value="pro">Pro</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Duration</label>
+                    <select
+                      value={editForm.subscriptionDuration}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({ ...prev, subscriptionDuration: e.target.value }))
+                      }
+                    >
+                      <option value="monthly">Monthly</option>
+                      <option value="6months">6 Months</option>
+                      <option value="1year">1 Year</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Number of Users</label>
+                  <input
+                    type="number"
+                    placeholder="Number of Users"
+                    value={editForm.numberOfUsers}
+                    onChange={(e) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        numberOfUsers: e.target.value,
+                      }))
+                    }
+                    min={1}
+                    required
+                  />
+                </div>
+
+                <div className="admin-modal-actions">
+                  <button
+                    type="button"
+                    className="btn-action"
+                    onClick={closeEditModal}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-action btn-export"
+                    disabled={editLoading}
+                  >
+                    {editLoading ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
+
+      {
+        isAddTenantModalOpen && (
+          <div className="admin-modal-backdrop">
+            <div className="admin-modal">
+              <h3>Add New Client (Multi-tenant)</h3>
+              <p style={{ fontSize: "0.8rem", color: "#666", marginBottom: "1rem" }}>
+                This will provision a new database and subdomain for the OMS.
+              </p>
+              <form className="admin-modal-form" onSubmit={handleAddTenant}>
+                <div className="form-group">
+                  <label>Admin Name</label>
+                  <input
+                    type="text"
+                    placeholder="Full Name"
+                    value={addTenantForm.name}
+                    onChange={(e) =>
+                      setAddTenantForm((prev) => ({ ...prev, name: e.target.value }))
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Email</label>
+                    <input
+                      type="email"
+                      placeholder="admin@client.com"
+                      value={addTenantForm.email}
+                      onChange={(e) =>
+                        setAddTenantForm((prev) => ({ ...prev, email: e.target.value }))
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Mobile</label>
+                    <input
+                      type="text"
+                      placeholder="Mobile Number"
+                      value={addTenantForm.mobile}
+                      onChange={(e) =>
+                        setAddTenantForm((prev) => ({ ...prev, mobile: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Password</label>
+                  <input
+                    type="password"
+                    placeholder="Initial Password"
+                    value={addTenantForm.password}
+                    onChange={(e) =>
+                      setAddTenantForm((prev) => ({ ...prev, password: e.target.value }))
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Company Name</label>
+                  <input
+                    type="text"
+                    placeholder="Company Name"
+                    value={addTenantForm.companyName}
+                    onChange={(e) =>
+                      setAddTenantForm((prev) => ({ ...prev, companyName: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Company Address</label>
+                  <input
+                    type="text"
+                    placeholder="Address"
+                    value={addTenantForm.companyAddress}
+                    onChange={(e) =>
+                      setAddTenantForm((prev) => ({ ...prev, companyAddress: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Subdomain (Tenant ID)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., client1"
+                      value={addTenantForm.tenantId}
+                      onChange={(e) =>
+                        setAddTenantForm((prev) => ({ ...prev, tenantId: e.target.value }))
+                      }
+                      required
+                    />
+                    <small>Used for subdomain routing (e.g., client1.yourdomain.com)</small>
+                  </div>
+                  <div className="form-group">
+                    <label>Database URL</label>
+                    <input
+                      type="text"
+                      placeholder="postgresql://..."
+                      value={addTenantForm.databaseUrl}
+                      onChange={(e) =>
+                        setAddTenantForm((prev) => ({ ...prev, databaseUrl: e.target.value }))
+                      }
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Plan Type</label>
+                    <select
+                      value={addTenantForm.planType}
+                      onChange={(e) =>
+                        setAddTenantForm((prev) => ({ ...prev, planType: e.target.value }))
+                      }
+                    >
+                      <option value="basic">Basic</option>
+                      <option value="pro">Pro</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Duration</label>
+                    <select
+                      value={addTenantForm.subscriptionDuration}
+                      onChange={(e) =>
+                        setAddTenantForm((prev) => ({ ...prev, subscriptionDuration: e.target.value }))
+                      }
+                    >
+                      <option value="monthly">Monthly</option>
+                      <option value="6months">6 Months</option>
+                      <option value="1year">1 Year</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Number of Users</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={addTenantForm.numberOfUsers}
+                    onChange={(e) =>
+                      setAddTenantForm((prev) => ({ ...prev, numberOfUsers: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="admin-modal-actions">
+                  <button
+                    type="button"
+                    className="btn-action"
+                    onClick={() => setIsAddTenantModalOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-action btn-export"
+                    disabled={addTenantLoading}
+                  >
+                    {addTenantLoading ? "Registering..." : "Add Client"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )
+      }
     </div>
   );
 };

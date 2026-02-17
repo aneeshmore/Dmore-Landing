@@ -8,6 +8,13 @@
       "when": 1770195769290,
       "tag": "0000_melodic_serpent_society",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1771351310458,
+      "tag": "0001_third_riptide",
+      "breakpoints": true
     }
   ]
 }

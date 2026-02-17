@@ -22,6 +22,7 @@ export interface User {
   companyName?: string;
   companyAddress?: string;
   domain?: string;
+  databaseUrl?: string;
   numberOfUsers?: number;
   planType?: PlanType;
   subscriptionDuration?: SubscriptionDuration;
