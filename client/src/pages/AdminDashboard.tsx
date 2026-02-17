@@ -130,10 +130,10 @@ const AdminDashboard = () => {
   };
 
   const pendingPaymentCount = users.filter(
-    (entry) => entry.accountStatus === "pending_payment",
+    (entry) => !entry.renewalDate,
   ).length;
   const completedPaymentCount = users.filter(
-    (entry) => entry.accountStatus !== "pending_payment",
+    (entry) => Boolean(entry.renewalDate),
   ).length;
   const activeUsersCount = users.filter(
     (entry) => entry.isActive !== false,
@@ -371,14 +371,10 @@ const AdminDashboard = () => {
                       <td>
                         <span
                           className={`payment-status-badge ${
-                            entry.accountStatus === "pending_payment"
-                              ? "pending"
-                              : "completed"
+                            entry.renewalDate ? "completed" : "pending"
                           }`}
                         >
-                          {entry.accountStatus === "pending_payment"
-                            ? "Pending"
-                            : "Completed"}
+                          {entry.renewalDate ? "Completed" : "Pending"}
                         </span>
                       </td>
 

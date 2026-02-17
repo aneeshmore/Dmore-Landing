@@ -17,6 +17,17 @@ export const findUserByEmail = async (email: string) => {
   }
 };
 
+export const findUserByMobile = async (mobile: string) => {
+  try {
+    return await db.query.users.findFirst({
+      where: eq(users.mobile, mobile),
+    });
+  } catch (error) {
+    console.error("Database query failed:", error);
+    return null;
+  }
+};
+
 export const findUserById = async (id: number) => {
   try {
     return await db.query.users.findFirst({
@@ -33,16 +44,41 @@ export const createUser = async (
 ) => {
   const existing = await findUserByEmail(input.email);
   if (existing) {
-    throw new Error("Email already in use");
+    throw new Error("User already registered.");
+  }
+
+  if (input.mobile) {
+    const existingMobile = await findUserByMobile(input.mobile);
+    if (existingMobile) {
+      throw new Error("User already registered.");
+    }
   }
 
   const password = await hashPassword(input.password!);
-  const [user] = await db
-    .insert(users)
-    .values({ ...input, password })
-    .returning();
 
-  return user;
+  try {
+    const [user] = await db
+      .insert(users)
+      .values({ ...input, password })
+      .returning();
+    return user;
+  } catch (error) {
+    const message = error instanceof Error ? error.message.toLowerCase() : "";
+    const isLegacyAccountStatusError =
+      message.includes("account_status") && message.includes("pending_payment");
+
+    if (!isLegacyAccountStatusError) {
+      throw error;
+    }
+
+    const { accountStatus, ...fallbackInput } = input as NewUser;
+    const [fallbackUser] = await db
+      .insert(users)
+      .values({ ...fallbackInput, password })
+      .returning();
+    return fallbackUser;
+  }
+
 };
 
 export const authenticateUser = async (email: string, password: string) => {

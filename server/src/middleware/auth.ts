@@ -27,7 +27,12 @@ export const authenticate = async (
     }
 
     const user = await findUserById(payload.userId);
-    if (!user || !user.isActive) {
+    if (!user) {
+      return res.status(403).json({ message: "User is inactive" });
+    }
+
+    // Keep admin access available even if account status was toggled accidentally.
+    if (user.role !== "admin" && !user.isActive) {
       return res.status(403).json({ message: "User is inactive" });
     }
 

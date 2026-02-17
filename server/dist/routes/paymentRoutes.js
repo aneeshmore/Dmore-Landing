@@ -48,6 +48,19 @@ const pricing = {
         "1year": 29999,
     },
 };
+const toPaymentStatus = (user) => {
+    if (user.accountStatus === "disabled")
+        return "Failed";
+    if (user.accountStatus === "pending_payment")
+        return "Pending";
+    if (user.accountStatus === "pending_approval")
+        return "Completed";
+    // Legacy DB compatibility: "active" was historical default.
+    if (user.accountStatus === "active") {
+        return user.renewalDate ? "Completed" : "Pending";
+    }
+    return "Pending";
+};
 /* ==========================
    VALIDATION SCHEMA
 ========================== */
@@ -70,10 +83,13 @@ router.post("/create-order", auth_1.authenticate, async (req, res) => {
         if (!requestingUser) {
             return res.status(404).json({ message: "User not found" });
         }
-        if (requestingUser.role === "user" &&
-            requestingUser.accountStatus !== "pending_payment") {
+        const paymentStatus = toPaymentStatus(requestingUser);
+        if (requestingUser.role === "user" && paymentStatus !== "Pending") {
             return res.status(403).json({
-                message: "Payment successful. Admin will contact you soon.",
+                paymentStatus,
+                message: paymentStatus === "Completed"
+                    ? "Payment successful. Admin will contact you soon."
+                    : "Payment failed. Please try again.",
             });
         }
         const amount = pricing[planType][period];
@@ -123,6 +139,13 @@ router.post("/create-order", auth_1.authenticate, async (req, res) => {
             },
         });
     }
+});
+router.get("/status", auth_1.authenticate, async (req, res) => {
+    const user = await (0, userService_1.findUserById)(req.user.userId);
+    if (!user) {
+        return res.status(404).json({ message: "User not found" });
+    }
+    return res.json({ paymentStatus: toPaymentStatus(user) });
 });
 /* ==========================
    VERIFY PAYMENT
@@ -192,7 +215,7 @@ router.post("/verify-payment", auth_1.authenticate, async (req, res) => {
             planType,
             subscriptionDuration: period,
             renewalDate,
-            accountStatus: "pending_approval",
+            accountStatus: "active",
         })
             .where((0, drizzle_orm_1.eq)(schema_1.users.id, userId));
         return res.json({

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteUser = exports.updateUser = exports.listUsers = exports.authenticateUser = exports.createUser = exports.findUserById = exports.findUserByEmail = void 0;
+exports.deleteUser = exports.updateUser = exports.listUsers = exports.authenticateUser = exports.createUser = exports.findUserById = exports.findUserByMobile = exports.findUserByEmail = void 0;
 const drizzle_orm_1 = require("drizzle-orm");
 const db_1 = require("../db");
 const schema_1 = require("../db/schema");
@@ -17,6 +17,18 @@ const findUserByEmail = async (email) => {
     }
 };
 exports.findUserByEmail = findUserByEmail;
+const findUserByMobile = async (mobile) => {
+    try {
+        return await db_1.db.query.users.findFirst({
+            where: (0, drizzle_orm_1.eq)(schema_1.users.mobile, mobile),
+        });
+    }
+    catch (error) {
+        console.error("Database query failed:", error);
+        return null;
+    }
+};
+exports.findUserByMobile = findUserByMobile;
 const findUserById = async (id) => {
     try {
         return await db_1.db.query.users.findFirst({
@@ -32,14 +44,35 @@ exports.findUserById = findUserById;
 const createUser = async (input) => {
     const existing = await (0, exports.findUserByEmail)(input.email);
     if (existing) {
-        throw new Error("Email already in use");
+        throw new Error("User already registered.");
+    }
+    if (input.mobile) {
+        const existingMobile = await (0, exports.findUserByMobile)(input.mobile);
+        if (existingMobile) {
+            throw new Error("User already registered.");
+        }
     }
     const password = await (0, password_1.hashPassword)(input.password);
-    const [user] = await db_1.db
-        .insert(schema_1.users)
-        .values({ ...input, password })
-        .returning();
-    return user;
+    try {
+        const [user] = await db_1.db
+            .insert(schema_1.users)
+            .values({ ...input, password })
+            .returning();
+        return user;
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message.toLowerCase() : "";
+        const isLegacyAccountStatusError = message.includes("account_status") && message.includes("pending_payment");
+        if (!isLegacyAccountStatusError) {
+            throw error;
+        }
+        const { accountStatus, ...fallbackInput } = input;
+        const [fallbackUser] = await db_1.db
+            .insert(schema_1.users)
+            .values({ ...fallbackInput, password })
+            .returning();
+        return fallbackUser;
+    }
 };
 exports.createUser = createUser;
 const authenticateUser = async (email, password) => {

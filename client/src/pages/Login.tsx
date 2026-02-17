@@ -13,12 +13,32 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const isValidEmail = (value: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+
+    const identifier = email.trim();
+    if (!identifier) {
+      showToast("Email or username is required.", "warning");
+      return;
+    }
+
+    if (identifier.toLowerCase() !== "admin" && !isValidEmail(identifier)) {
+      showToast("Please enter a valid email address.", "warning");
+      return;
+    }
+
+    if (!password.trim()) {
+      showToast("Password is required.", "warning");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const user = await login(email, password);
+      const user = await login(identifier, password);
       showToast("Login successful", "success");
 
       if (user.role === "admin") {
@@ -26,9 +46,8 @@ const Login = () => {
       } else {
         navigate("/payment");
       }
-    } catch (error) {
-      console.error("Login error", error);
-      showToast("Invalid credentials", "error");
+    } catch {
+      showToast("Invalid credentials.", "error");
     } finally {
       setLoading(false);
     }
