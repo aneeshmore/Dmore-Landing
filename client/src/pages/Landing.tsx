@@ -143,110 +143,36 @@ const stats = [
 const pricingPlans = [
   {
     name: "Basic",
-    price: "₹14,99",
-    period: "/month",
     description: "Perfect for small paint factories getting started",
     highlight: false,
+    pricingOptions: [
+      { label: "Monthly", period: "/month", price: "Rs. 1,499" },
+      { label: "6 Months", period: "/6month", price: "Rs. 7,499" },
+      { label: "1 Year", period: "/1Year", price: "Rs. 11,999" },
+    ],
     features: [
       "CRM Management",
       "Order Management",
       "Basic Production Planning",
       "Inventory Tracking",
-      "Up to 5 Users",
-    ],
-  },
-  {
-    name: "Basic",
-    price: "₹7,499",
-    period: "/6month",
-    description: "Perfect for small paint factories getting started",
-    highlight: false,
-    features: [
-      "CRM Management",
-      "Order Management",
-      "Basic Production Planning",
-      "Inventory Tracking",
-      "Up to 5 Users",
-    ],
-  },
-  {
-    name: "Basic",
-    price: "₹11,999",
-    period: "/1Year",
-    description: "Perfect for small paint factories getting started",
-    highlight: false,
-    features: [
-      "CRM Management",
-      "Order Management",
-      "Basic Production Planning",
-      "Inventory Tracking",
-      "Up to 5 Users",
+      "Single User only",
     ],
   },
   {
     name: "Professional",
-    price: "₹2,999",
-    period: "/month",
     description: "For growing paint manufacturers wanting full control",
     highlight: true,
+    pricingOptions: [
+      { label: "Monthly", period: "/month", price: "Rs. 2,999" },
+      { label: "6 Months", period: "/6month", price: "Rs. 16,499" },
+      { label: "1 Year", period: "/1Year", price: "Rs. 29,999" },
+    ],
     features: [
       "Everything in Basic +",
       "2K Production Planning",
       "Quality Control Module",
       "Formulation Intelligence",
-      "Unlimited Users",
-      "Dispatch & Invoicing",
-      "Payments Dashboard",
-      "Priority Support",
-      "Custom Reports",
-    ],
-  },
-  // {
-  //   name: 'Basic',
-  //   price: 'Rs.1500',
-  //   period: '/month',
-  //   description: 'Perfect for small paint factories getting started',
-  //   highlight: false,
-  //   features: [
-  //     'CRM Management',
-  //     'Order Management',
-  //     'Basic Production Planning',
-  //     'Inventory Tracking',
-  //     'Up to 5 Users',
-
-  //   ],
-
-  // },
-  {
-    name: "Professional",
-    price: "₹16,499",
-    period: "/6month",
-    description: "For growing paint manufacturers wanting full control",
-    highlight: true,
-    features: [
-      "Everything in Basic +",
-      "2K Production Planning",
-      "Quality Control Module",
-      "Formulation Intelligence",
-      "Unlimited Users",
-      "Dispatch & Invoicing",
-      "Payments Dashboard",
-      "Priority Support",
-      "Custom Reports",
-    ],
-  },
-  {
-    name: "Professional",
-    price: "₹29,999",
-    period: "/1Year",
-    description: "For growing paint manufacturers wanting full control",
-    highlight: true,
-    features: [
-      "Everything in Basic +",
-      "2K Production Planning",
-      "Quality Control Module",
-      "Formulation Intelligence",
-      "Unlimited Users",
+      "Upto 10 Users",
       "Dispatch & Invoicing",
       "Payments Dashboard",
       "Priority Support",
@@ -410,7 +336,7 @@ const Landing = () => {
       <section id="pricing" className="panel pricing-section">
         <div className="panel-header">
           <h2>💰 Simple, Transparent Pricing</h2>
-          <p>Choose the plan that fits your factory's needs. Cancel anytime.</p>
+          <p>Choose the plan that fits your factory's needs.</p>
         </div>
 
         <div>
@@ -442,8 +368,7 @@ const Landing = () => {
               style={{
                 position: "absolute",
                 top: "2px",
-                left:
-                  selectedPricingPlan === "Professional" ? "26px" : "2px",
+                left: selectedPricingPlan === "Professional" ? "26px" : "2px",
                 width: "22px",
                 height: "22px",
                 borderRadius: "50%",
@@ -455,95 +380,54 @@ const Landing = () => {
           <span>Professional</span>
         </div>
 
-        {/* Basic Plans - 3 cards in a row */}
-        {selectedPricingPlan === "Basic" && (
-          <div className="pricing-grid basic-pricing-grid">
-          {pricingPlans
-            .filter((plan) => plan.name === "Basic")
-            .map((plan, index) => (
-              <div
-                key={`basic-${index}`}
-                className={`pricing-card ${plan.highlight ? "pricing-highlight" : ""}`}
-              >
-                {plan.highlight && (
-                  <div className="pricing-badge">Most Popular</div>
-                )}
-                <div className="pricing-header">
-                  <h3>{plan.name}</h3>
-                  <p className="pricing-description">{plan.description}</p>
-                </div>
-                <div className="pricing-price">
-                  <span className="price-amount">{plan.price}</span>
-                  <span className="price-period">{plan.period}</span>
-                </div>
-                <button
-                  className={`btn ${plan.highlight ? "primary" : "ghost"}`}
-                  onClick={() => handleBuyNow(plan.name, plan.period)}
-                  style={{ width: "100%", textAlign: "center" }}
-                >
-                  Buy Now
-                </button>
+        {pricingPlans
+          .filter((plan) => plan.name === selectedPricingPlan)
+          .map((plan) => (
+            <div key={plan.name}>
+              <div className="pricing-grid pricing-grid-compact">
+                {plan.pricingOptions.map((option) => (
+                  <div
+                    key={`${plan.name}-${option.period}`}
+                    className={`pricing-card pricing-card-compact ${
+                      plan.highlight ? "pricing-highlight" : ""
+                    }`}
+                  >
+                    {plan.highlight && (
+                      <div className="pricing-badge">Most Popular</div>
+                    )}
+                    <div className="pricing-header">
+                      <h3>{plan.name}</h3>
+                    </div>
 
-                <div className="pricing-features">
-                  <p className="features-title">What's included:</p>
-                  <ul className="features-list">
-                    {plan.features.map((feature) => (
-                      <li key={feature}>
-                        <span className="checkmark">✓</span>
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                    <div className="pricing-price">
+                      <span className="price-amount">{option.price}</span>
+                      <span className="price-period">{option.period}</span>
+                    </div>
+
+                    <button
+                      className={`btn ${plan.highlight ? "primary" : "ghost"}`}
+                      onClick={() => handleBuyNow(plan.name, option.period)}
+                      style={{ width: "100%", textAlign: "center" }}
+                    >
+                      Buy Now
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
 
-        {/* Pro Plans - 3 cards in a row */}
-        {selectedPricingPlan === "Professional" && (
-          <div className="pricing-grid pro-pricing-grid">
-          {pricingPlans
-            .filter((plan) => plan.name === "Professional")
-            .map((plan, index) => (
-              <div
-                key={`pro-${index}`}
-                className={`pricing-card ${plan.highlight ? "pricing-highlight" : ""}`}
-              >
-                {plan.highlight && (
-                  <div className="pricing-badge">Most Popular</div>
-                )}
-                <div className="pricing-header">
-                  <h3>{plan.name}</h3>
-                  <p className="pricing-description">{plan.description}</p>
-                </div>
-                <div className="pricing-price">
-                  <span className="price-amount">{plan.price}</span>
-                  <span className="price-period">{plan.period}</span>
-                </div>
-                <button
-                  className={`btn ${plan.highlight ? "primary" : "ghost"}`}
-                  onClick={() => handleBuyNow(plan.name, plan.period)}
-                  style={{ width: "100%", textAlign: "center" }}
-                >
-                  Buy Now
-                </button>
-
-                <div className="pricing-features">
-                  <p className="features-title">What's included:</p>
-                  <ul className="features-list">
-                    {plan.features.map((feature) => (
-                      <li key={feature}>
-                        <span className="checkmark">✓</span>
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+              <div className="pricing-features pricing-included-shared">
+                <p className="features-title">What's Included:</p>
+                <ul className="features-list">
+                  {plan.features.map((feature) => (
+                    <li key={`${plan.name}-${feature}`}>
+                      <span className="checkmark">{"\u2713"}</span>
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
               </div>
-            ))}
-          </div>
-        )}
+            </div>
+          ))}
       </section>
 
       <footer className="footer">

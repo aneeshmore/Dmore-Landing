@@ -246,6 +246,12 @@ router.post(
         });
       }
 
+      if (req.user?.userId !== userId) {
+        return res.status(403).json({
+          message: "Payment verification user mismatch",
+        });
+      }
+
       /* ==========================
          3️⃣ CALCULATE RENEWAL DATE
       ========================== */
@@ -292,3 +298,4 @@ router.post(
 );
 
 export default router;
+

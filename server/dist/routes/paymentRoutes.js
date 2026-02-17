@@ -190,6 +190,11 @@ router.post("/verify-payment", auth_1.authenticate, async (req, res) => {
                 message: "Invalid order metadata",
             });
         }
+        if (req.user?.userId !== userId) {
+            return res.status(403).json({
+                message: "Payment verification user mismatch",
+            });
+        }
         /* ==========================
            3️⃣ CALCULATE RENEWAL DATE
         ========================== */
