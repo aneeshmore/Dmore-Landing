@@ -20,10 +20,6 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [passwordMessage, setPasswordMessage] = useState("");
-  const [passwordLoading, setPasswordLoading] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editUserId, setEditUserId] = useState<number | null>(null);
   const [editLoading, setEditLoading] = useState(false);
@@ -61,7 +57,10 @@ const AdminDashboard = () => {
       showToast("User deleted successfully", "success");
       fetchUsers();
     } catch (err: any) {
-      showToast(err?.response?.data?.message || "Failed to delete user.", "error");
+      showToast(
+        err?.response?.data?.message || "Failed to delete user.",
+        "error",
+      );
     }
   };
 
@@ -130,37 +129,18 @@ const AdminDashboard = () => {
     link.remove();
   };
 
-  const handleChangePassword = async (e: FormEvent) => {
-    e.preventDefault();
-    setPasswordLoading(true);
-    setPasswordMessage("");
-    try {
-      const { data } = await api.post("/admin/change-password", {
-        currentPassword,
-        newPassword,
-      });
-      const message = data.message || "Password updated successfully";
-      setPasswordMessage(message);
-      showToast(message, "success");
-      setCurrentPassword("");
-      setNewPassword("");
-    } catch (err: any) {
-      const message = err?.response?.data?.message || "Unable to update password";
-      setPasswordMessage(message);
-      showToast(message, "error");
-    } finally {
-      setPasswordLoading(false);
-    }
-  };
-
   const pendingPaymentCount = users.filter(
     (entry) => entry.accountStatus === "pending_payment",
   ).length;
   const completedPaymentCount = users.filter(
     (entry) => entry.accountStatus !== "pending_payment",
   ).length;
-  const activeUsersCount = users.filter((entry) => entry.isActive !== false).length;
-  const inactiveUsersCount = users.filter((entry) => entry.isActive === false).length;
+  const activeUsersCount = users.filter(
+    (entry) => entry.isActive !== false,
+  ).length;
+  const inactiveUsersCount = users.filter(
+    (entry) => entry.isActive === false,
+  ).length;
 
   const handleToggleUserStatus = async (entry: User) => {
     const nextStatus = entry.isActive === false ? true : false;
@@ -208,11 +188,15 @@ const AdminDashboard = () => {
           </div>
           <div className="payment-status-grid">
             <div className="payment-status-item pending">
-              <span className="payment-status-value">{pendingPaymentCount}</span>
+              <span className="payment-status-value">
+                {pendingPaymentCount}
+              </span>
               <span className="payment-status-label">Pending</span>
             </div>
             <div className="payment-status-item completed">
-              <span className="payment-status-value">{completedPaymentCount}</span>
+              <span className="payment-status-value">
+                {completedPaymentCount}
+              </span>
               <span className="payment-status-label">Completed</span>
             </div>
           </div>
@@ -234,43 +218,16 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        <div className="admin-card admin-password-card">
-          <div className="admin-card-header">
-            <h2>Change Password</h2>
-          </div>
-          <form className="admin-password-form" onSubmit={handleChangePassword}>
-            <input
-              type="password"
-              placeholder="Current password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              required
-            />
-            <input
-              type="password"
-              placeholder="New password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-              minLength={6}
-            />
-            <button
-              type="submit"
-              className="btn-action btn-export"
-              disabled={passwordLoading}
-            >
-              {passwordLoading ? "Updating..." : "Update Password"}
-            </button>
-          </form>
-          {passwordMessage && <p className="admin-password-message">{passwordMessage}</p>}
-        </div>
-
         <div className="admin-card admin-table-card">
           <div className="admin-card-header">
             <h2>Registered Users</h2>
 
             <div className="header-actions">
-              <button className="btn-action" onClick={fetchUsers} disabled={loading}>
+              <button
+                className="btn-action"
+                onClick={fetchUsers}
+                disabled={loading}
+              >
                 Refresh
               </button>
 
@@ -319,7 +276,9 @@ const AdminDashboard = () => {
                   {users.map((entry) => (
                     <tr
                       key={entry.id}
-                      className={entry.accountStatus === "disabled" ? "row-disabled" : ""}
+                      className={
+                        entry.accountStatus === "disabled" ? "row-disabled" : ""
+                      }
                     >
                       <td>
                         <div className="customer-cell">
@@ -328,7 +287,9 @@ const AdminDashboard = () => {
                           </div>
                           <div className="customer-info">
                             <span className="customer-name">{entry.name}</span>
-                            <span className="customer-email">{entry.email}</span>
+                            <span className="customer-email">
+                              {entry.email}
+                            </span>
                           </div>
                         </div>
                       </td>
@@ -355,7 +316,9 @@ const AdminDashboard = () => {
                       </td>
 
                       <td>
-                        <span className="users-count">{entry.numberOfUsers ?? 1}</span>
+                        <span className="users-count">
+                          {entry.numberOfUsers ?? 1}
+                        </span>
                       </td>
 
                       <td>
@@ -396,7 +359,9 @@ const AdminDashboard = () => {
                       <td>
                         <span
                           className={`toggle-label ${
-                            entry.accountStatus === "active" ? "active" : "disabled"
+                            entry.accountStatus === "active"
+                              ? "active"
+                              : "disabled"
                           }`}
                         >
                           {entry.accountStatus}
@@ -420,7 +385,9 @@ const AdminDashboard = () => {
                       <td>
                         <span className="date-text">
                           {entry.createdAt
-                            ? new Date(entry.createdAt as string).toLocaleDateString()
+                            ? new Date(
+                                entry.createdAt as string,
+                              ).toLocaleDateString()
                             : "-"}
                         </span>
                       </td>

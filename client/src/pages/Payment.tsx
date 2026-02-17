@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../context/AuthContext";
 import {
@@ -23,18 +23,23 @@ const Payment = () => {
 
   const [selectedPlan, setSelectedPlan] = useState<PlanType>("basic");
   const [selectedPeriod, setSelectedPeriod] = useState<PlanPeriod>("monthly");
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
+  const [paymentCompleted, setPaymentCompleted] = useState(false);
 
-  // 🔐 Redirect if not logged in
+  const isUserPaymentCompleted = useMemo(() => {
+    if (!user || user.role !== "user") return false;
+    return paymentCompleted || user.accountStatus !== "pending_payment";
+  }, [paymentCompleted, user]);
+
   useEffect(() => {
     if (!token) navigate("/login");
   }, [token, navigate]);
 
-  // ✅ Load Razorpay SDK safely
   useEffect(() => {
+    if (isUserPaymentCompleted) return;
+
     const loadRazorpay = () => {
       return new Promise<boolean>((resolve) => {
         if (window.Razorpay) {
@@ -45,25 +50,23 @@ const Payment = () => {
         const script = document.createElement("script");
         script.src = "https://checkout.razorpay.com/v1/checkout.js";
         script.async = true;
-
         script.onload = () => resolve(true);
         script.onerror = () => resolve(false);
-
         document.body.appendChild(script);
       });
     };
 
     loadRazorpay().then((loaded) => {
       if (!loaded) {
-        setError("Failed to load Razorpay SDK. Please refresh.");
-        showToast("Failed to load Razorpay SDK. Please refresh.", "error");
+        const message = "Failed to load Razorpay SDK. Please refresh.";
+        setError(message);
+        showToast(message, "error");
         return;
       }
       setRazorpayLoaded(true);
     });
-  }, [showToast]);
+  }, [isUserPaymentCompleted, showToast]);
 
-  // 💳 Handle Payment
   const handlePayment = async () => {
     if (!user || !token) return;
 
@@ -76,7 +79,6 @@ const Payment = () => {
     setError("");
 
     try {
-      // 1️⃣ Create Order from backend
       const order = await paymentService.createOrder({
         planType: selectedPlan,
         period: selectedPeriod as SubscriptionDuration,
@@ -87,25 +89,22 @@ const Payment = () => {
       }
 
       const options = {
-        key: order.keyId, // Must match backend key
-        amount: order.amount, // MUST be in paise (e.g. ₹500 = 50000)
+        key: order.keyId,
+        amount: order.amount,
         currency: order.currency || "INR",
         name: "PaintOS",
         description: `${selectedPlan.toUpperCase()} - ${
           PRICING[selectedPlan][selectedPeriod].label
         }`,
         order_id: order.orderId,
-
         prefill: {
           name: user.name,
           email: user.email,
           contact: user.mobile || "",
         },
-
         theme: {
           color: "#4F46E5",
         },
-
         handler: async function (response: any) {
           try {
             await paymentService.verifyPayment(
@@ -115,15 +114,15 @@ const Payment = () => {
             );
 
             if (user.role !== "admin") {
-              showToast(
-                "Payment successful. Admin will contact you soon.",
-                "success",
-              );
+              const message = "Payment successful. Admin will contact you soon.";
+              setPaymentCompleted(true);
+              showToast(message, "success");
+              navigate("/payment", { replace: true });
             } else {
               showToast("Payment successful.", "success");
+              navigate("/", { replace: true });
             }
-            navigate("/");
-          } catch (err) {
+          } catch {
             setError("Payment verification failed.");
             showToast("Payment verification failed.", "error");
           }
@@ -132,7 +131,6 @@ const Payment = () => {
 
       const razorpay = new window.Razorpay(options);
 
-      // ❌ Handle Payment Failure
       razorpay.on("payment.failed", function (response: any) {
         const message =
           response?.error?.description || "Payment failed. Please try again.";
@@ -144,8 +142,8 @@ const Payment = () => {
     } catch (err: any) {
       const message =
         err?.response?.data?.message ||
-          err.message ||
-          "Payment failed. Please try again.";
+        err.message ||
+        "Payment failed. Please try again.";
       setError(message);
       showToast(message, "error");
     } finally {
@@ -156,6 +154,21 @@ const Payment = () => {
   const plans: PlanType[] = ["basic", "pro"];
   const periods: PlanPeriod[] = ["monthly", "6months", "1year"];
 
+  if (isUserPaymentCompleted) {
+    return (
+      <div className="payment-page">
+        <div className="payment-container payment-success-container">
+          <div className="payment-header">
+            <h1>Payment Successful</h1>
+          </div>
+          <div className="payment-success-message">
+            Payment successful. Admin will contact you soon.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="payment-page">
       <div className="payment-container">
@@ -165,15 +178,12 @@ const Payment = () => {
         </div>
 
         <div className="payment-content">
-          {/* LEFT SIDE */}
           <div className="plan-section">
             <div className="plan-types">
               {plans.map((plan) => (
                 <button
                   key={plan}
-                  className={`plan-btn ${
-                    selectedPlan === plan ? "active" : ""
-                  }`}
+                  className={`plan-btn ${selectedPlan === plan ? "active" : ""}`}
                   onClick={() => setSelectedPlan(plan)}
                 >
                   {plan.toUpperCase()}
@@ -188,9 +198,7 @@ const Payment = () => {
                 return (
                   <button
                     key={period}
-                    className={`period-btn ${
-                      selectedPeriod === period ? "active" : ""
-                    }`}
+                    className={`period-btn ${selectedPeriod === period ? "active" : ""}`}
                     onClick={() => setSelectedPeriod(period)}
                   >
                     <span>{pricing.label}</span>
@@ -201,7 +209,6 @@ const Payment = () => {
             </div>
           </div>
 
-          {/* RIGHT SIDE */}
           <div className="payment-summary">
             <div className="summary-row">
               <span>Plan</span>

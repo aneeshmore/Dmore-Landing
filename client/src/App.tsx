@@ -1,9 +1,8 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+﻿import { Navigate, Route, Routes } from "react-router-dom";
 import "./App.css";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminDashboard from "./pages/AdminDashboard";
-import UserDashboard from "./pages/UserDashboard";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -58,14 +57,12 @@ function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/user-dashboard"
-            element={
-              <ProtectedRoute role="user">
-                <UserDashboard />
-              </ProtectedRoute>
-            }
+            element={<Navigate to={token ? "/payment" : "/login"} replace />}
           />
+
           <Route
             path="/dashboard"
             element={
@@ -91,7 +88,7 @@ function App() {
         </Routes>
       </main>
       <footer className="site-footer">
-        � 2026 Dmore Technologies. All Rights Reserved.
+        © 2026 Dmore Technologies. All Rights Reserved.
       </footer>
     </div>
   );
@@ -100,7 +97,7 @@ function App() {
 function DashboardRedirect() {
   const { user } = useAuthContext();
   if (user?.role === "admin") return <Navigate to="/admin-dashboard" replace />;
-  return <Navigate to="/user-dashboard" replace />;
+  return <Navigate to="/payment" replace />;
 }
 
 export default App;

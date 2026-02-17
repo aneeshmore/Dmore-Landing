@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { api } from "../api/client";
 import { useAuth } from "../hooks/useAuth";
 import { useToast } from "../context/ToastContext";
 import heroImage from "../assets/image.png";
@@ -9,6 +10,11 @@ const Navbar = () => {
   const { showToast } = useToast();
   const { pathname } = useLocation();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -37,6 +43,47 @@ const Navbar = () => {
       .slice(0, 2)
       .map((part) => part[0]?.toUpperCase() ?? "")
       .join("");
+
+  const closePasswordModal = () => {
+    setIsPasswordModalOpen(false);
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmNewPassword("");
+    setPasswordLoading(false);
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      showToast("All password fields are required.", "warning");
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      showToast("New password and confirm password do not match.", "warning");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      showToast("New password must be at least 6 characters.", "warning");
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      const { data } = await api.post("/admin/change-password", {
+        currentPassword,
+        newPassword,
+      });
+      showToast(data?.message || "Password changed successfully", "success");
+      closePasswordModal();
+    } catch (err: any) {
+      showToast(
+        err?.response?.data?.message || "Unable to update password",
+        "error",
+      );
+      setPasswordLoading(false);
+    }
+  };
 
   return (
     <header className="navbar">
@@ -72,10 +119,6 @@ const Navbar = () => {
           <Link className={isActive("/admin-dashboard")} to="/admin-dashboard">
             Admin Dashboard
           </Link>
-        ) : user?.role === "user" ? (
-          <Link className={isActive("/user-dashboard")} to="/user-dashboard">
-            My Dashboard
-          </Link>
         ) : null}
       </nav>
 
@@ -92,6 +135,18 @@ const Navbar = () => {
             </button>
             {isProfileOpen && (
               <div className="profile-dropdown">
+                {user.role === "admin" && (
+                  <button
+                    className="profile-dropdown-item"
+                    onClick={() => {
+                      setIsProfileOpen(false);
+                      setIsPasswordModalOpen(true);
+                    }}
+                    type="button"
+                  >
+                    Change Password
+                  </button>
+                )}
                 <button
                   className="profile-dropdown-item"
                   onClick={() => {
@@ -117,6 +172,59 @@ const Navbar = () => {
           </>
         )}
       </div>
+
+      {isPasswordModalOpen && user?.role === "admin" && (
+        <div className="profile-modal-backdrop" onClick={closePasswordModal}>
+          <div
+            className="profile-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3>Change Password</h3>
+            <div className="profile-modal-form">
+              <input
+                type="password"
+                placeholder="Current Password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                required
+              />
+              <input
+                type="password"
+                placeholder="New Password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                minLength={6}
+                required
+              />
+              <input
+                type="password"
+                placeholder="Confirm New Password"
+                value={confirmNewPassword}
+                onChange={(e) => setConfirmNewPassword(e.target.value)}
+                minLength={6}
+                required
+              />
+              <div className="profile-modal-actions">
+                <button
+                  type="button"
+                  className="profile-modal-cancel"
+                  onClick={closePasswordModal}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="profile-modal-save"
+                  onClick={handleChangePassword}
+                  disabled={passwordLoading}
+                >
+                  {passwordLoading ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

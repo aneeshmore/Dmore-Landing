@@ -9,6 +9,8 @@ const envSchema = zod_1.z.object({
     JWT_SECRET: zod_1.z.string().min(10, "JWT_SECRET must be at least 10 characters"),
     RAZORPAY_KEY_ID: zod_1.z.string().min(1),
     RAZORPAY_KEY_SECRET: zod_1.z.string().min(1),
+    ADMIN_EMAIL: zod_1.z.string().email().optional(),
+    ADMIN_PASSWORD: zod_1.z.string().min(6).optional(),
 });
 const parsed = envSchema.safeParse(process.env);
 if (!parsed.success) {
@@ -22,4 +24,6 @@ exports.config = {
     jwtSecret: env.JWT_SECRET,
     razorpayKeyId: env.RAZORPAY_KEY_ID || "",
     razorpayKeySecret: env.RAZORPAY_KEY_SECRET || "",
+    adminEmail: env.ADMIN_EMAIL || "admin@morex.com",
+    adminPassword: env.ADMIN_PASSWORD || "admin123456",
 };

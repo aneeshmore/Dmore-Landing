@@ -512,4 +512,116 @@
     padding: 10px;
     font-size: 12px;
   }
+
+  .admin-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .header-actions {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .btn-action {
+    margin-left: 0;
+  }
+
+  .action-buttons {
+    flex-wrap: wrap;
+  }
+
+  .admin-modal {
+    max-width: 100%;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 1024px) {
+  .admin-content {
+    padding: 24px;
+  }
+
+  .admin-hero {
+    padding: 32px 24px;
+  }
+
+  .payment-status-grid {
+    gap: 10px;
+  }
+
+  .payment-status-item {
+    min-width: 150px;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-dashboard {
+    padding-bottom: 36px;
+  }
+
+  .admin-content {
+    padding: 14px;
+  }
+
+  .admin-card {
+    border-radius: 14px;
+    padding: 14px;
+  }
+
+  .customer-cell {
+    gap: 8px;
+  }
+
+  .customer-avatar {
+    width: 30px;
+    height: 30px;
+    font-size: 12px;
+  }
+
+  .customer-name {
+    font-size: 12px;
+  }
+
+  .customer-email {
+    font-size: 11px;
+  }
+
+  .admin-table th,
+  .admin-table td {
+    white-space: nowrap;
+    font-size: 11px;
+    padding: 8px;
+  }
+
+  .user-status-cell {
+    gap: 6px;
+  }
+
+  .status-switch {
+    width: 40px;
+    height: 22px;
+  }
+
+  .status-switch-thumb {
+    width: 18px;
+    height: 18px;
+  }
+
+  .status-switch.on .status-switch-thumb {
+    left: 20px;
+  }
+
+  .admin-modal-actions {
+    flex-direction: column;
+  }
+
+  .admin-modal-actions .btn-action {
+    width: 100%;
+  }
 }
