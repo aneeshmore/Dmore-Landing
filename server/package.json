@@ -18,6 +18,9 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "dependencies": {
     "@prisma/client": "^7.4.0",
     "bcryptjs": "^3.0.3",
@@ -27,7 +30,6 @@
     "express": "^5.2.1",
     "json2csv": "^6.0.0-alpha.2",
     "jsonwebtoken": "^9.0.3",
-    "nodemon": "^3.1.11",
     "pg": "^8.18.0",
     "prisma": "^7.4.0",
     "razorpay": "^2.9.6",
@@ -41,8 +43,11 @@
     "@types/node": "^20.10.0",
     "@types/pg": "^8.16.0",
     "drizzle-kit": "^0.31.8",
-    "ts-node-dev": "^2.0.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "glob": "^11.0.0",
+    "rimraf": "^6.0.0"
   }
 }
