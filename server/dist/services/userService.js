@@ -16,7 +16,7 @@ exports.findUserById = findUserById;
 const createUser = async (input) => {
     const existing = await (0, exports.findUserByEmail)(input.email);
     if (existing) {
-        throw new Error('Email already in use');
+        throw new Error("Email already in use");
     }
     const password = await (0, password_1.hashPassword)(input.password);
     const [user] = await db_1.db
@@ -28,7 +28,7 @@ const createUser = async (input) => {
 exports.createUser = createUser;
 const authenticateUser = async (email, password) => {
     const user = await (0, exports.findUserByEmail)(email);
-    if (!user)
+    if (!user || !user.isActive)
         return null;
     const isValid = await (0, password_1.verifyPassword)(password, user.password);
     if (!isValid)
@@ -43,6 +43,13 @@ const listUsers = () => db_1.db.query.users.findMany({
 });
 exports.listUsers = listUsers;
 const updateUser = async (id, data) => {
+    // ✅ FIX: Email uniqueness check moved inside function
+    if (data.email) {
+        const existing = await (0, exports.findUserByEmail)(data.email);
+        if (existing && existing.id !== id) {
+            throw new Error("Email already in use");
+        }
+    }
     const updatePayload = { ...data };
     if (data.password) {
         updatePayload.password = await (0, password_1.hashPassword)(data.password);
@@ -51,9 +58,28 @@ const updateUser = async (id, data) => {
         const [existing] = await db_1.db.select().from(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, id));
         return existing;
     }
-    const [user] = await db_1.db.update(schema_1.users).set(updatePayload).where((0, drizzle_orm_1.eq)(schema_1.users.id, id)).returning();
+    const [user] = await db_1.db
+        .update(schema_1.users)
+        .set(updatePayload)
+        .where((0, drizzle_orm_1.eq)(schema_1.users.id, id))
+        .returning({
+        id: schema_1.users.id,
+        name: schema_1.users.name,
+        email: schema_1.users.email,
+        role: schema_1.users.role,
+        domain: schema_1.users.domain,
+        numberOfUsers: schema_1.users.numberOfUsers,
+        planType: schema_1.users.planType,
+        subscriptionDuration: schema_1.users.subscriptionDuration,
+        accountStatus: schema_1.users.accountStatus,
+        renewalDate: schema_1.users.renewalDate,
+        createdAt: schema_1.users.createdAt,
+        updatedAt: schema_1.users.updatedAt,
+    });
     return user;
 };
 exports.updateUser = updateUser;
-const deleteUser = (id) => db_1.db.delete(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, id));
+const deleteUser = async (id) => {
+    return db_1.db.delete(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, id));
+};
 exports.deleteUser = deleteUser;

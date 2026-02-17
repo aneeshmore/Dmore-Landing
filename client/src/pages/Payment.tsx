@@ -21,68 +21,118 @@ const Payment = () => {
 
   const [selectedPlan, setSelectedPlan] = useState<PlanType>("basic");
   const [selectedPeriod, setSelectedPeriod] = useState<PlanPeriod>("monthly");
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
 
+  // 🔐 Redirect if not logged in
   useEffect(() => {
     if (!token) navigate("/login");
   }, [token, navigate]);
 
+  // ✅ Load Razorpay SDK safely
   useEffect(() => {
-    if (window.Razorpay) {
-      setRazorpayLoaded(true);
-      return;
-    }
+    const loadRazorpay = () => {
+      return new Promise<boolean>((resolve) => {
+        if (window.Razorpay) {
+          resolve(true);
+          return;
+        }
 
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.async = true;
-    script.onload = () => setRazorpayLoaded(true);
-    document.body.appendChild(script);
+        const script = document.createElement("script");
+        script.src = "https://checkout.razorpay.com/v1/checkout.js";
+        script.async = true;
+
+        script.onload = () => resolve(true);
+        script.onerror = () => resolve(false);
+
+        document.body.appendChild(script);
+      });
+    };
+
+    loadRazorpay().then((loaded) => {
+      if (!loaded) {
+        setError("Failed to load Razorpay SDK. Please refresh.");
+        return;
+      }
+      setRazorpayLoaded(true);
+    });
   }, []);
 
+  // 💳 Handle Payment
   const handlePayment = async () => {
     if (!user || !token) return;
+
+    if (!window.Razorpay) {
+      setError("Razorpay SDK not loaded. Please refresh.");
+      return;
+    }
 
     setLoading(true);
     setError("");
 
     try {
+      // 1️⃣ Create Order from backend
       const order = await paymentService.createOrder({
         planType: selectedPlan,
         period: selectedPeriod as SubscriptionDuration,
       });
 
-      const razorpay = new window.Razorpay({
-        key: order.keyId,
-        amount: order.amount,
-        currency: order.currency,
+      if (!order?.orderId) {
+        throw new Error("Invalid order response from server");
+      }
+
+      const options = {
+        key: order.keyId, // Must match backend key
+        amount: order.amount, // MUST be in paise (e.g. ₹500 = 50000)
+        currency: order.currency || "INR",
         name: "PaintOS",
         description: `${selectedPlan.toUpperCase()} - ${
           PRICING[selectedPlan][selectedPeriod].label
         }`,
         order_id: order.orderId,
+
         prefill: {
           name: user.name,
           email: user.email,
           contact: user.mobile || "",
         },
-        theme: { color: "#4F46E5" },
-        handler: async (response: any) => {
-          await paymentService.verifyPayment(
-            response.razorpay_order_id,
-            response.razorpay_payment_id,
-            response.razorpay_signature,
-          );
-          navigate("/");
+
+        theme: {
+          color: "#4F46E5",
         },
+
+        handler: async function (response: any) {
+          try {
+            await paymentService.verifyPayment(
+              response.razorpay_order_id,
+              response.razorpay_payment_id,
+              response.razorpay_signature,
+            );
+
+            navigate("/");
+          } catch (err) {
+            setError("Payment verification failed.");
+          }
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+
+      // ❌ Handle Payment Failure
+      razorpay.on("payment.failed", function (response: any) {
+        setError(
+          response?.error?.description || "Payment failed. Please try again.",
+        );
       });
 
       razorpay.open();
     } catch (err: any) {
       setError(
-        err?.response?.data?.message || "Payment failed. Please try again.",
+        err?.response?.data?.message ||
+          err.message ||
+          "Payment failed. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -145,7 +195,7 @@ const Payment = () => {
             </div>
 
             <div className="summary-row">
-              <span>Duration : </span>
+              <span>Duration</span>
               <span>{PRICING[selectedPlan][selectedPeriod].label}</span>
             </div>
 

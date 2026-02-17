@@ -19,7 +19,7 @@ const Register = () => {
 
     try {
       // Register user
-      const newUser = await register(
+      await register(
         name,
         email,
         password,

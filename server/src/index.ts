@@ -22,18 +22,6 @@ app.use((_req, res) => {
   res.status(404).json({ message: "Route not found" });
 });
 
-app.use(
-  (
-    err: Error,
-    _req: express.Request,
-    res: express.Response,
-    _next: express.NextFunction,
-  ) => {
-    console.error(err);
-    res.status(500).json({ message: "Internal server error" });
-  },
-);
-
 app.listen(config.port, () => {
   console.log(`🚀 API running on http://localhost:${config.port}`);
 });
