@@ -5,7 +5,11 @@ const zod_1 = require("zod");
 const userService_1 = require("../services/userService");
 const jwt_1 = require("../utils/jwt");
 const auth_1 = require("../middleware/auth");
+const password_1 = require("../utils/password");
 const router = (0, express_1.Router)();
+const ADMIN_USERNAME = "admin";
+const ADMIN_EMAIL = "admin@dmore.local";
+const DEFAULT_ADMIN_PASSWORD = "admin@123";
 const registerSchema = zod_1.z.object({
     name: zod_1.z.string().min(2),
     email: zod_1.z.string().email(),
@@ -15,7 +19,7 @@ const registerSchema = zod_1.z.object({
     companyAddress: zod_1.z.string().min(4),
 });
 const loginSchema = zod_1.z.object({
-    email: zod_1.z.string().email(),
+    email: zod_1.z.string().min(1),
     password: zod_1.z.string().min(6),
 });
 const sanitizeUser = (user) => {
@@ -25,6 +29,9 @@ const sanitizeUser = (user) => {
 router.post("/register", async (req, res) => {
     try {
         const body = registerSchema.parse(req.body);
+        if (body.email.toLowerCase() === ADMIN_EMAIL) {
+            return res.status(403).json({ message: "This email is reserved" });
+        }
         const user = await (0, userService_1.createUser)({ ...body, role: "user" });
         const token = (0, jwt_1.signToken)({
             userId: user.id,
@@ -44,7 +51,29 @@ router.post("/register", async (req, res) => {
 router.post("/login", async (req, res) => {
     try {
         const body = loginSchema.parse(req.body);
-        const user = await (0, userService_1.authenticateUser)(body.email, body.password);
+        const identifier = body.email.trim();
+        if (identifier.toLowerCase() === ADMIN_USERNAME) {
+            let adminUser = await (0, userService_1.findUserByEmail)(ADMIN_EMAIL);
+            if (!adminUser) {
+                adminUser = await (0, userService_1.createUser)({
+                    name: "admin",
+                    email: ADMIN_EMAIL,
+                    password: DEFAULT_ADMIN_PASSWORD,
+                    role: "admin",
+                });
+            }
+            const isValid = await (0, password_1.verifyPassword)(body.password, adminUser.password);
+            if (!isValid) {
+                return res.status(401).json({ message: "Invalid credentials" });
+            }
+            const token = (0, jwt_1.signToken)({
+                userId: adminUser.id,
+                email: adminUser.email,
+                role: adminUser.role,
+            });
+            return res.json({ token, user: sanitizeUser(adminUser) });
+        }
+        const user = await (0, userService_1.authenticateUser)(identifier, body.password);
         if (!user) {
             return res.status(401).json({ message: "Invalid credentials" });
         }

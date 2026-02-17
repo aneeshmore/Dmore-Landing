@@ -17,13 +17,19 @@ const userSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6).optional(),
   role: z.enum(["admin", "user"]),
+  isActive: z.boolean().optional(),
+  mobile: z.string().optional(),
+  companyName: z.string().optional(),
+  companyAddress: z.string().optional(),
   domain: z.string().optional(),
   numberOfUsers: z.number().int().positive().optional(),
   planType: z.enum(["basic", "pro"]).optional(),
   subscriptionDuration: z
-    .enum(["monthly", "quarterly", "6months", "1year"])
+    .enum(["monthly", "6months", "1year"])
     .optional(),
-  accountStatus: z.enum(["active", "disabled"]).optional(),
+  accountStatus: z
+    .enum(["pending_payment", "pending_approval", "active", "disabled"])
+    .optional(),
   renewalDate: z.string().datetime().optional(),
 });
 

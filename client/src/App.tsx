@@ -13,7 +13,8 @@ import { useAuthContext } from "./context/AuthContext";
 import RegisteredUser from "./pages/RegisteredUser";
 
 function App() {
-  const { token, loading } = useAuthContext();
+  const { token, user, loading } = useAuthContext();
+  const authRedirect = user?.role === "admin" ? "/admin-dashboard" : "/payment";
 
   if (loading) return <div>Loading...</div>;
 
@@ -26,12 +27,12 @@ function App() {
 
           <Route
             path="/login"
-            element={token ? <Navigate to="/payment" replace /> : <Login />}
+            element={token ? <Navigate to={authRedirect} replace /> : <Login />}
           />
 
           <Route
             path="/register"
-            element={token ? <Navigate to="/payment" replace /> : <Register />}
+            element={token ? <Navigate to={authRedirect} replace /> : <Register />}
           />
 
           <Route
@@ -72,6 +73,9 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+      <footer className="site-footer">
+        © 2026 Dmore Technologies. All Rights Reserved.
+      </footer>
     </div>
   );
 }

@@ -1,10 +1,12 @@
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuthContext } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import "../App.css";
 
 const Login = () => {
   const { login } = useAuthContext();
+  const { showToast } = useToast();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
@@ -17,6 +19,7 @@ const Login = () => {
 
     try {
       const user = await login(email, password);
+      showToast("Login successful", "success");
 
       if (user.role === "admin") {
         navigate("/admin");
@@ -25,7 +28,7 @@ const Login = () => {
       }
     } catch (error) {
       console.error("Login error", error);
-      alert("Invalid credentials");
+      showToast("Invalid credentials", "error");
     } finally {
       setLoading(false);
     }
@@ -34,19 +37,24 @@ const Login = () => {
     <div className="login-wrapper">
       <div className="login-container">
         <div className="login-left">
-          <h1>PaintTrack</h1>
-          <p>Manage your paint factory operations efficiently and securely.</p>
+          <p className="login-kicker">WELCOME BACK</p>
+          <h1>PaintOS Control Center</h1>
+          <p>
+            Sign in to monitor production, inventory, dispatch, and payments in
+            one unified workspace.
+          </p>
         </div>
 
         <div className="login-card">
           <h2>Sign in to your account</h2>
+          <p className="login-subtitle">Enter your credentials to continue.</p>
 
-          <form onSubmit={handleSubmit}>
+          <form className="login-form" onSubmit={handleSubmit}>
             <div className="form-field">
-              <label>Email</label>
+              <label>Username or Email</label>
               <input
-                type="email"
-                placeholder="you@example.com"
+                type="text"
+                placeholder="admin or you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -64,7 +72,7 @@ const Login = () => {
               />
             </div>
 
-            <button type="submit" disabled={loading}>
+            <button className="login-submit" type="submit" disabled={loading}>
               {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>

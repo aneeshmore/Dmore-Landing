@@ -37,16 +37,14 @@ const getRazorpayErrorMessage = (error) => {
 console.log("🔥 PAYMENT ROUTES LOADED");
 const pricing = {
     basic: {
-        monthly: 999,
-        quarterly: 2499,
-        "6months": 4999,
-        "1year": 8999,
+        monthly: 1499,
+        "6months": 7499,
+        "1year": 11999,
     },
     pro: {
-        monthly: 1999,
-        quarterly: 5499,
-        "6months": 9999,
-        "1year": 17999,
+        monthly: 2999,
+        "6months": 16499,
+        "1year": 29999,
     },
 };
 /* ==========================
@@ -54,7 +52,7 @@ const pricing = {
 ========================== */
 const createOrderSchema = zod_1.z.object({
     planType: zod_1.z.enum(["basic", "pro"]),
-    period: zod_1.z.enum(["monthly", "quarterly", "6months", "1year"]),
+    period: zod_1.z.enum(["monthly", "6months", "1year"]),
 });
 /* ==========================
    CREATE ORDER
@@ -166,9 +164,6 @@ router.post("/verify-payment", auth_1.authenticate, async (req, res) => {
         switch (period) {
             case "monthly":
                 renewalDate.setMonth(now.getMonth() + 1);
-                break;
-            case "quarterly":
-                renewalDate.setMonth(now.getMonth() + 3);
                 break;
             case "6months":
                 renewalDate.setMonth(now.getMonth() + 6);

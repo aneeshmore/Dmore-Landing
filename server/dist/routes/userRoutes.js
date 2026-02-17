@@ -12,13 +12,19 @@ const userSchema = zod_1.z.object({
     email: zod_1.z.string().email(),
     password: zod_1.z.string().min(6).optional(),
     role: zod_1.z.enum(["admin", "user"]),
+    isActive: zod_1.z.boolean().optional(),
+    mobile: zod_1.z.string().optional(),
+    companyName: zod_1.z.string().optional(),
+    companyAddress: zod_1.z.string().optional(),
     domain: zod_1.z.string().optional(),
     numberOfUsers: zod_1.z.number().int().positive().optional(),
     planType: zod_1.z.enum(["basic", "pro"]).optional(),
     subscriptionDuration: zod_1.z
-        .enum(["monthly", "quarterly", "6months", "1year"])
+        .enum(["monthly", "6months", "1year"])
         .optional(),
-    accountStatus: zod_1.z.enum(["active", "disabled"]).optional(),
+    accountStatus: zod_1.z
+        .enum(["pending_payment", "pending_approval", "active", "disabled"])
+        .optional(),
     renewalDate: zod_1.z.string().datetime().optional(),
 });
 // For updates, all fields optional

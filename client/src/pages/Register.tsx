@@ -1,10 +1,12 @@
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { useToast } from "../context/ToastContext";
 
 const Register = () => {
   const navigate = useNavigate();
   const { register } = useAuth();
+  const { showToast } = useToast();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -29,9 +31,14 @@ const Register = () => {
       );
 
       // After successful registration → go to payment page
+      showToast("Registration successful", "success");
       navigate("/payment");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Registration error", err);
+      showToast(
+        err?.response?.data?.message || "Registration failed. Please try again.",
+        "error",
+      );
     } finally {
       setLoading(false);
     }

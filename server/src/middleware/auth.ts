@@ -1,11 +1,12 @@
 import { NextFunction, Request, Response } from "express";
 import { verifyToken, JwtPayload } from "../utils/jwt";
+import { findUserById } from "../services/userService";
 
 export interface AuthenticatedRequest extends Request {
   user?: JwtPayload;
 }
 
-export const authenticate = (
+export const authenticate = async (
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction,
@@ -23,6 +24,11 @@ export const authenticate = (
     const payload = verifyToken(token);
     if (!payload) {
       return res.status(401).json({ message: "Invalid token" });
+    }
+
+    const user = await findUserById(payload.userId);
+    if (!user || !user.isActive) {
+      return res.status(403).json({ message: "User is inactive" });
     }
 
     req.user = payload;

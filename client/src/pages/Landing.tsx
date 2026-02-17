@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuthContext } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 
 const problems = [
   {
@@ -141,7 +143,7 @@ const stats = [
 const pricingPlans = [
   {
     name: "Basic",
-    price: "Rs.1500",
+    price: "₹14,99",
     period: "/month",
     description: "Perfect for small paint factories getting started",
     highlight: false,
@@ -155,7 +157,7 @@ const pricingPlans = [
   },
   {
     name: "Basic",
-    price: "Rs.8000",
+    price: "₹7,499",
     period: "/6month",
     description: "Perfect for small paint factories getting started",
     highlight: false,
@@ -169,7 +171,7 @@ const pricingPlans = [
   },
   {
     name: "Basic",
-    price: "Rs.15000",
+    price: "₹11,999",
     period: "/1Year",
     description: "Perfect for small paint factories getting started",
     highlight: false,
@@ -182,8 +184,8 @@ const pricingPlans = [
     ],
   },
   {
-    name: "Pro",
-    price: "Rs.3000",
+    name: "Professional",
+    price: "₹2,999",
     period: "/month",
     description: "For growing paint manufacturers wanting full control",
     highlight: true,
@@ -216,8 +218,8 @@ const pricingPlans = [
 
   // },
   {
-    name: "Pro",
-    price: "Rs.15000",
+    name: "Professional",
+    price: "₹16,499",
     period: "/6month",
     description: "For growing paint manufacturers wanting full control",
     highlight: true,
@@ -234,8 +236,8 @@ const pricingPlans = [
     ],
   },
   {
-    name: "Pro",
-    price: "Rs.27000",
+    name: "Professional",
+    price: "₹29,999",
     period: "/1Year",
     description: "For growing paint manufacturers wanting full control",
     highlight: true,
@@ -256,6 +258,10 @@ const pricingPlans = [
 const Landing = () => {
   const navigate = useNavigate();
   const { user, token } = useAuthContext();
+  const { showToast } = useToast();
+  const [selectedPricingPlan, setSelectedPricingPlan] = useState<
+    "Basic" | "Professional"
+  >("Basic");
 
   // Handle Buy Now button click - check auth status and redirect appropriately
   const handleBuyNow = (planName: string, periodLabel: string) => {
@@ -266,9 +272,14 @@ const Landing = () => {
     };
 
     const period = periodMap[periodLabel];
-    const planType = planName.toLowerCase();
+    const planMap: Record<string, string> = {
+      basic: "basic",
+      professional: "pro",
+      pro: "pro",
+    };
+    const planType = planMap[planName.toLowerCase()];
 
-    if (!period) {
+    if (!period || !planType) {
       console.error("Invalid period selected");
       return;
     }
@@ -286,7 +297,7 @@ const Landing = () => {
     }
 
     if (user.accountStatus === "pending_approval") {
-      alert("Payment received. Admin will contact you soon.");
+      showToast("Payment successful. Admin will contact you soon.", "info");
       return;
     }
 
@@ -402,8 +413,51 @@ const Landing = () => {
           <p>Choose the plan that fits your factory's needs. Cancel anytime.</p>
         </div>
 
+        <div>
+          <span>Basic</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={selectedPricingPlan === "Professional"}
+            aria-label="Toggle between Basic and Professional plans"
+            onClick={() =>
+              setSelectedPricingPlan((current) =>
+                current === "Basic" ? "Professional" : "Basic",
+              )
+            }
+            style={{
+              width: "52px",
+              height: "28px",
+              borderRadius: "999px",
+              border: "1px solid #9ca3af",
+              background:
+                selectedPricingPlan === "Professional" ? "#2563eb" : "#d1d5db",
+              position: "relative",
+              cursor: "pointer",
+              verticalAlign: "middle",
+              margin: "0 0.5rem",
+            }}
+          >
+            <span
+              style={{
+                position: "absolute",
+                top: "2px",
+                left:
+                  selectedPricingPlan === "Professional" ? "26px" : "2px",
+                width: "22px",
+                height: "22px",
+                borderRadius: "50%",
+                background: "#ffffff",
+                transition: "left 0.2s ease",
+              }}
+            />
+          </button>
+          <span>Professional</span>
+        </div>
+
         {/* Basic Plans - 3 cards in a row */}
-        <div className="pricing-grid basic-pricing-grid">
+        {selectedPricingPlan === "Basic" && (
+          <div className="pricing-grid basic-pricing-grid">
           {pricingPlans
             .filter((plan) => plan.name === "Basic")
             .map((plan, index) => (
@@ -443,12 +497,14 @@ const Landing = () => {
                 </div>
               </div>
             ))}
-        </div>
+          </div>
+        )}
 
         {/* Pro Plans - 3 cards in a row */}
-        <div className="pricing-grid pro-pricing-grid">
+        {selectedPricingPlan === "Professional" && (
+          <div className="pricing-grid pro-pricing-grid">
           {pricingPlans
-            .filter((plan) => plan.name === "Pro")
+            .filter((plan) => plan.name === "Professional")
             .map((plan, index) => (
               <div
                 key={`pro-${index}`}
@@ -486,7 +542,8 @@ const Landing = () => {
                 </div>
               </div>
             ))}
-        </div>
+          </div>
+        )}
       </section>
 
       <footer className="footer">

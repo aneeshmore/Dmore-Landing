@@ -7,6 +7,7 @@ import {
   type PlanPeriod,
 } from "../services/paymentService";
 import type { PlanType, SubscriptionDuration } from "../types";
+import { useToast } from "../context/ToastContext";
 import "../App.css";
 
 declare global {
@@ -17,6 +18,7 @@ declare global {
 
 const Payment = () => {
   const { user, token } = useAuthContext();
+  const { showToast } = useToast();
   const navigate = useNavigate();
 
   const [selectedPlan, setSelectedPlan] = useState<PlanType>("basic");
@@ -54,11 +56,12 @@ const Payment = () => {
     loadRazorpay().then((loaded) => {
       if (!loaded) {
         setError("Failed to load Razorpay SDK. Please refresh.");
+        showToast("Failed to load Razorpay SDK. Please refresh.", "error");
         return;
       }
       setRazorpayLoaded(true);
     });
-  }, []);
+  }, [showToast]);
 
   // 💳 Handle Payment
   const handlePayment = async () => {
@@ -111,9 +114,18 @@ const Payment = () => {
               response.razorpay_signature,
             );
 
+            if (user.role !== "admin") {
+              showToast(
+                "Payment successful. Admin will contact you soon.",
+                "success",
+              );
+            } else {
+              showToast("Payment successful.", "success");
+            }
             navigate("/");
           } catch (err) {
             setError("Payment verification failed.");
+            showToast("Payment verification failed.", "error");
           }
         },
       };
@@ -122,25 +134,27 @@ const Payment = () => {
 
       // ❌ Handle Payment Failure
       razorpay.on("payment.failed", function (response: any) {
-        setError(
-          response?.error?.description || "Payment failed. Please try again.",
-        );
+        const message =
+          response?.error?.description || "Payment failed. Please try again.";
+        setError(message);
+        showToast(message, "error");
       });
 
       razorpay.open();
     } catch (err: any) {
-      setError(
+      const message =
         err?.response?.data?.message ||
           err.message ||
-          "Payment failed. Please try again.",
-      );
+          "Payment failed. Please try again.";
+      setError(message);
+      showToast(message, "error");
     } finally {
       setLoading(false);
     }
   };
 
   const plans: PlanType[] = ["basic", "pro"];
-  const periods: PlanPeriod[] = ["monthly", "quarterly", "6months", "1year"];
+  const periods: PlanPeriod[] = ["monthly", "6months", "1year"];
 
   return (
     <div className="payment-page">

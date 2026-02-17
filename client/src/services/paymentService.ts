@@ -47,16 +47,14 @@ export const paymentService = {
 // Pricing data aligned with backend
 export const PRICING = {
   basic: {
-    monthly: { amount: 999, label: "Monthly" },
-    quarterly: { amount: 2499, label: "Quarterly" },
-    "6months": { amount: 4999, label: "6 Months" },
-    "1year": { amount: 8999, label: "1 Year" },
+    monthly: { amount: 1499, label: "Monthly" },
+    "6months": { amount: 7499, label: "6 Months" },
+    "1year": { amount: 11999, label: "1 Year" },
   },
   pro: {
-    monthly: { amount: 1999, label: "Monthly" },
-    quarterly: { amount: 5499, label: "Quarterly" },
-    "6months": { amount: 9999, label: "6 Months" },
-    "1year": { amount: 17999, label: "1 Year" },
+    monthly: { amount: 2999, label: "Monthly" },
+    "6months": { amount: 16499, label: "6 Months" },
+    "1year": { amount: 29999, label: "1 Year" },
   },
 };
 

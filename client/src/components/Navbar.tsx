@@ -1,17 +1,53 @@
-import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
-import heroImage from '../assets/image.png';
+import { useEffect, useRef, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+import { useToast } from "../context/ToastContext";
+import heroImage from "../assets/image.png";
 
 const Navbar = () => {
   const { user, logout } = useAuth();
+  const { showToast } = useToast();
   const { pathname } = useLocation();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
-  const isActive = (path: string) => (pathname === path ? 'nav-link active' : 'nav-link');
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        profileMenuRef.current &&
+        !profileMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsProfileOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const isActive = (path: string) =>
+    pathname === path ? "nav-link active" : "nav-link";
+
+  const getInitials = (name: string) =>
+    name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("");
 
   return (
-    <header className="navbar"> 
+    <header className="navbar">
       <Link to="/" className="brand">
-        <img src={heroImage} alt="Smart Paint Factory ERP System" className="brand-logo" width={42} height={42} />
+        <img
+          src={heroImage}
+          alt="Smart Paint Factory ERP System"
+          className="brand-logo"
+          width={42}
+          height={42}
+        />
         <div>
           <p className="brand-name">Morex Technology</p>
           <p className="brand-sub">Secure digital experiences</p>
@@ -19,21 +55,21 @@ const Navbar = () => {
       </Link>
 
       <nav className="nav-links">
-        <Link className={isActive('/')} to="/">
+        <Link className={isActive("/")} to="/">
           Home
         </Link>
         <a className="nav-link" href="#features">
           Features
         </a>
-         <Link className={isActive('/about')} to="/about">
+        <Link className={isActive("/about")} to="/about">
           About
         </Link>
         <a className="nav-link" href="#pricing">
           Pricing
         </a>
-       
-        {user?.role === 'admin' && (
-          <Link className={isActive('/admin')} to="/admin">
+
+        {user?.role === "admin" && (
+          <Link className={isActive("/admin")} to="/admin">
             Admin
           </Link>
         )}
@@ -41,14 +77,31 @@ const Navbar = () => {
 
       <div className="nav-actions">
         {user ? (
-          <>
-            <span className="pill">
-              {user.name} · {user.role}
-            </span>
-            <button className="btn ghost" onClick={logout}>
-              Logout
+          <div className="profile-menu" ref={profileMenuRef}>
+            <button
+              className="profile-trigger"
+              onClick={() => setIsProfileOpen((prev) => !prev)}
+              type="button"
+            >
+              <span className="profile-avatar">{getInitials(user.name)}</span>
+              <span className="profile-name">{user.name}</span>
             </button>
-          </>
+            {isProfileOpen && (
+              <div className="profile-dropdown">
+                <button
+                  className="profile-dropdown-item"
+                  onClick={() => {
+                    setIsProfileOpen(false);
+                    logout();
+                    showToast("Logged out successfully", "info");
+                  }}
+                  type="button"
+                >
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
         ) : (
           <>
             <Link to="/login" className="btn ghost">

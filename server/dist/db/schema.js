@@ -6,7 +6,6 @@ exports.roleEnum = (0, pg_core_1.pgEnum)("role", ["admin", "user"]);
 exports.planTypeEnum = (0, pg_core_1.pgEnum)("plan_type", ["basic", "pro"]);
 exports.subscriptionDurationEnum = (0, pg_core_1.pgEnum)("subscription_duration", [
     "monthly",
-    "quarterly",
     "6months",
     "1year",
 ]);

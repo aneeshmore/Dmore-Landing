@@ -13,7 +13,6 @@ export const roleEnum = pgEnum("role", ["admin", "user"]);
 export const planTypeEnum = pgEnum("plan_type", ["basic", "pro"]);
 export const subscriptionDurationEnum = pgEnum("subscription_duration", [
   "monthly",
-  "quarterly",
   "6months",
   "1year",
 ]);

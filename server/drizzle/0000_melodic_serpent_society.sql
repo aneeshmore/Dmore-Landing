@@ -1,6 +1,6 @@
 CREATE TYPE "public"."role" AS ENUM('admin', 'user');
 CREATE TYPE "public"."plan_type" AS ENUM('basic', 'pro');
-CREATE TYPE "public"."subscription_duration" AS ENUM('monthly', 'quarterly', '6months', '1year');
+CREATE TYPE "public"."subscription_duration" AS ENUM('monthly', '6months', '1year');
 CREATE TYPE "public"."account_status" AS ENUM('active', 'disabled');
 
 --> statement-breakpoint

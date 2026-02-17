@@ -53,6 +53,10 @@ export type UpdateUserInput = Partial<
     User,
     | "name"
     | "email"
+    | "isActive"
+    | "mobile"
+    | "companyName"
+    | "companyAddress"
     | "role"
     | "domain"
     | "numberOfUsers"
@@ -91,6 +95,10 @@ export const updateUser = async (id: number, data: UpdateUserInput) => {
       id: users.id,
       name: users.name,
       email: users.email,
+      isActive: users.isActive,
+      mobile: users.mobile,
+      companyName: users.companyName,
+      companyAddress: users.companyAddress,
       role: users.role,
       domain: users.domain,
       numberOfUsers: users.numberOfUsers,

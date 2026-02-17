@@ -42,16 +42,14 @@ console.log("🔥 PAYMENT ROUTES LOADED");
 
 const pricing = {
   basic: {
-    monthly: 999,
-    quarterly: 2499,
-    "6months": 4999,
-    "1year": 8999,
+    monthly: 1499,
+    "6months": 7499,
+    "1year": 11999,
   },
   pro: {
-    monthly: 1999,
-    quarterly: 5499,
-    "6months": 9999,
-    "1year": 17999,
+    monthly: 2999,
+    "6months": 16499,
+    "1year": 29999,
   },
 } as const;
 
@@ -64,7 +62,7 @@ type PlanPeriod = keyof (typeof pricing)["basic"];
 
 const createOrderSchema = z.object({
   planType: z.enum(["basic", "pro"]),
-  period: z.enum(["monthly", "quarterly", "6months", "1year"]),
+  period: z.enum(["monthly", "6months", "1year"]),
 });
 
 /* ==========================
@@ -214,9 +212,6 @@ router.post(
       switch (period) {
         case "monthly":
           renewalDate.setMonth(now.getMonth() + 1);
-          break;
-        case "quarterly":
-          renewalDate.setMonth(now.getMonth() + 3);
           break;
         case "6months":
           renewalDate.setMonth(now.getMonth() + 6);
