@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Request, Response, Router } from "express";
 import { z } from "zod";
 import {
   createUser,
@@ -43,7 +43,7 @@ const sanitizeUser = (user: any) => {
 
 router.use(authenticate, requireAdmin);
 
-router.get("/", async (_req, res) => {
+router.get("/", async (_req: Request, res: Response) => {
   try {
     const users = await listUsers();
     return res.json({ users });
@@ -52,7 +52,7 @@ router.get("/", async (_req, res) => {
   }
 });
 
-router.post("/", async (req, res) => {
+router.post("/", async (req: Request, res: Response) => {
   try {
     const body = userSchema.parse(req.body);
 
@@ -76,7 +76,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-router.get("/export/csv", async (_req, res) => {
+router.get("/export/csv", async (_req: Request, res: Response) => {
   try {
     const users = await listUsers();
 
@@ -101,7 +101,7 @@ router.get("/export/csv", async (_req, res) => {
   }
 });
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", async (req: Request, res: Response) => {
   try {
     const body = updateSchema.parse(req.body);
     const id = Number(req.params.id);
@@ -123,7 +123,7 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
 

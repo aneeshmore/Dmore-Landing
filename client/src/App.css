@@ -31,9 +31,9 @@
 }
 
 .content {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 0 1.5rem 4rem;
+  width: 100%;
+  margin: 0;
+  padding: 0 2rem 4rem;
 }
 
 .toast-stack {
@@ -101,7 +101,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.25rem 1.5rem;
+  padding: 1.25rem 2rem;
   position: sticky;
   top: 0;
   z-index: 20;
@@ -750,8 +750,14 @@
   box-shadow: 0 8px 24px rgba(124, 58, 237, 0.15);
 }
 
-.auth-title h2 { margin: 0; }
-.form-compact .lede { margin: 0; color: #6B7280; }
+.auth-title h2 {
+  margin: 0;
+}
+
+.form-compact .lede {
+  margin: 0;
+  color: #6B7280;
+}
 
 .form-grid-login {
   display: grid;
@@ -762,21 +768,26 @@
   padding: 0.95rem 1rem;
   border-radius: 12px;
   border: 1px solid rgba(14, 165, 233, 0.08);
-  background: linear-gradient(180deg, rgba(250,250,255,0.6), #F8FAFC);
-  box-shadow: 0 4px 14px rgba(37,99,235,0.06);
+  background: linear-gradient(180deg, rgba(250, 250, 255, 0.6), #F8FAFC);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.06);
   transition: all 0.18s ease;
 }
 
 .input-ghost:focus {
   transform: translateY(-2px);
   border-color: #2563EB;
-  box-shadow: 0 8px 30px rgba(37,99,235,0.12);
+  box-shadow: 0 8px 30px rgba(37, 99, 235, 0.12);
   background: #fff;
 }
 
-.btn-lg { padding: 0.95rem 1rem; font-size: 1.02rem; }
+.btn-lg {
+  padding: 0.95rem 1rem;
+  font-size: 1.02rem;
+}
 
-.form-row .hint { color: #64748B; }
+.form-row .hint {
+  color: #64748B;
+}
 
 /* make the login CTA slightly more prominent */
 .btn.primary {
@@ -1702,180 +1713,209 @@
     flex-wrap: wrap;
     gap: 0.75rem;
   }
+
   .brand {
     flex: 1;
     min-width: 200px;
   }
+
   .nav-links {
     flex: 0 1 100%;
     justify-content: flex-start;
     margin: 0;
     order: 3;
   }
+
   .nav-actions {
     flex: 1;
   }
+
   .hero {
     flex-direction: column;
     padding: 1.5rem;
   }
+
   .hero-content {
     text-align: center;
   }
+
   .hero-image {
     width: 100%;
   }
+
   .hero-image img {
     max-width: 300px;
   }
+
   .cta-section {
     flex-direction: column-reverse;
     padding: 1.5rem;
     gap: 1.5rem;
   }
+
   .cta-image {
     width: 100%;
     height: 200px;
   }
+
   .cta {
     flex-direction: column;
     align-items: center;
     text-align: center;
     padding: 0;
   }
+
   .cta-actions {
     align-items: center;
   }
+
   .form-grid {
     grid-template-columns: 1fr;
   }
+
   .form-grid-register {
     grid-template-columns: 1fr;
   }
+
   .register-card {
     padding: 1.5rem;
   }
+
   .register-header {
     flex-direction: column;
     align-items: center;
     text-align: center;
     gap: 1rem;
   }
+
   .register-icon {
     font-size: 2rem;
   }
+
   .register-header h1 {
     font-size: 1.4rem;
   }
+
   .footer-content {
     grid-template-columns: 1fr;
   }
+
   .footer-bottom {
     flex-direction: column;
     gap: 1rem;
     align-items: flex-start;
   }
+
   .footer-socials {
     width: 100%;
     justify-content: flex-start;
   }
+
   .pricing-grid {
     grid-template-columns: 1fr;
   }
+
   .pricing-highlight {
     transform: scale(1);
   }
+
   .pricing-highlight:hover {
     transform: scale(1) translateY(-4px);
   }
+
   .pricing-card {
     padding: 1.5rem;
   }
+
   .pricing-price {
     font-size: 2rem;
   }
+
   .price-amount {
     font-size: 2rem;
   }
-  }
-  .panel-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .table-head,
-  .table-row {
-    grid-template-columns: 1fr;
-  }
-  
-  .content-page {
-    padding: 0 1rem 2rem;
-  }
+}
 
-  .page-hero {
-    padding: 2rem 1.5rem;
-    margin-bottom: 1.5rem;
-  }
+.panel-header {
+  flex-direction: column;
+  align-items: flex-start;
+}
 
-  .page-hero h1 {
-    font-size: 1.8rem;
-  }
+.table-head,
+.table-row {
+  grid-template-columns: 1fr;
+}
 
-  .values-grid,
-  .benefits-grid,
-  .jobs-grid {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
+.content-page {
+  padding: 0 1rem 2rem;
+}
 
-  .value-card,
-  .benefit-card,
-  .job-card {
-    padding: 1.5rem;
-  }
+.page-hero {
+  padding: 2rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
 
-  .job-meta {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
+.page-hero h1 {
+  font-size: 1.8rem;
+}
 
-  .stats-section {
-    padding: 2rem 1.5rem;
-  }
+.values-grid,
+.benefits-grid,
+.jobs-grid {
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
 
-  .stats-container {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-  }
+.value-card,
+.benefit-card,
+.job-card {
+  padding: 1.5rem;
+}
 
-  .stat-number {
-    font-size: 2rem;
-  }
+.job-meta {
+  flex-direction: column;
+  gap: 0.5rem;
+}
 
-  .mission-grid,
-  .challenges-grid,
-  .team-grid,
-  .highlight-grid {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
+.stats-section {
+  padding: 2rem 1.5rem;
+}
 
-  .story-item {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 1rem;
-  }
+.stats-container {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
 
-  .story-text h3,
-  .highlight-item h3 {
-    font-size: 1.1rem;
-  }
+.stat-number {
+  font-size: 2rem;
+}
+
+.mission-grid,
+.challenges-grid,
+.team-grid,
+.highlight-grid {
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+.story-item {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1rem;
+}
+
+.story-text h3,
+.highlight-item h3 {
+  font-size: 1.1rem;
+}
 
 
 @keyframes shimmer {
   0% {
     background-position: -200% center;
   }
+
   100% {
     background-position: 200% center;
   }
@@ -1886,9 +1926,11 @@
     opacity: 0;
     transform: translateX(-100%);
   }
+
   50% {
     opacity: 1;
   }
+
   100% {
     opacity: 0;
     transform: translateX(100%);
@@ -2283,8 +2325,6 @@
     grid-template-columns: 1fr;
   }
 }
-
-
 
 /* resistred user  */
 

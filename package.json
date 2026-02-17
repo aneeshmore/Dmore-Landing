@@ -1,0 +1,7 @@
+{
+    "name": "morex-landing-page-root",
+    "private": true,
+    "engines": {
+        "node": ">=20"
+    }
+}

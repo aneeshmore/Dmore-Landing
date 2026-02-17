@@ -2,16 +2,31 @@ import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { NewUser, User, users } from "../db/schema";
 import { hashPassword, verifyPassword } from "../utils/password";
+import { config } from "../config/env";
 
-export const findUserByEmail = (email: string) =>
-  db.query.users.findFirst({
-    where: eq(users.email, email),
-  });
 
-export const findUserById = (id: number) =>
-  db.query.users.findFirst({
-    where: eq(users.id, id),
-  });
+
+export const findUserByEmail = async (email: string) => {
+  try {
+    return await db.query.users.findFirst({
+      where: eq(users.email, email),
+    });
+  } catch (error) {
+    console.error("Database query failed:", error);
+    return null;
+  }
+};
+
+export const findUserById = async (id: number) => {
+  try {
+    return await db.query.users.findFirst({
+      where: eq(users.id, id),
+    });
+  } catch (error) {
+    console.error("Database query failed:", error);
+    return null;
+  }
+};
 
 export const createUser = async (
   input: Omit<NewUser, "id" | "createdAt" | "updatedAt">,
@@ -40,12 +55,18 @@ export const authenticateUser = async (email: string, password: string) => {
   return user;
 };
 
-export const listUsers = () =>
-  db.query.users.findMany({
-    columns: {
-      password: false,
-    },
-  });
+export const listUsers = async () => {
+  try {
+    return await db.query.users.findMany({
+      columns: {
+        password: false,
+      },
+    });
+  } catch (error) {
+    console.error("Could not fetch users from database:", error);
+    return [];
+  }
+};
 
 // Extended type for update that includes all user fields including subscription fields
 export type UpdateUserInput = Partial<

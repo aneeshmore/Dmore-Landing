@@ -22,7 +22,7 @@ const Login = () => {
       showToast("Login successful", "success");
 
       if (user.role === "admin") {
-        navigate("/admin");
+        navigate("/admin-dashboard");
       } else {
         navigate("/payment");
       }
@@ -33,6 +33,7 @@ const Login = () => {
       setLoading(false);
     }
   };
+
   return (
     <div className="login-wrapper">
       <div className="login-container">
@@ -78,7 +79,7 @@ const Login = () => {
           </form>
 
           <div className="login-bottom">
-            Don’t have an account? <Link to="/register">Register</Link>
+            Don&rsquo;t have an account? <Link to="/register">Register</Link>
           </div>
         </div>
       </div>

@@ -11,6 +11,7 @@
     "db:studio": "prisma studio",
     "db:generate": "drizzle-kit generate:pg --config drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config drizzle.config.ts",
+    "db:seed": "tsx src/db/seed.ts",
     "lint": "echo \"Add lints if needed\""
   },
   "keywords": [],

@@ -68,11 +68,15 @@ const Navbar = () => {
           Pricing
         </a>
 
-        {user?.role === "admin" && (
-          <Link className={isActive("/admin")} to="/admin">
-            Admin
+        {user?.role === "admin" ? (
+          <Link className={isActive("/admin-dashboard")} to="/admin-dashboard">
+            Admin Dashboard
           </Link>
-        )}
+        ) : user?.role === "user" ? (
+          <Link className={isActive("/user-dashboard")} to="/user-dashboard">
+            My Dashboard
+          </Link>
+        ) : null}
       </nav>
 
       <div className="nav-actions">
