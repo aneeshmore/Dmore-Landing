@@ -5,6 +5,7 @@ import {
   createUser,
   findUserByEmail,
   findUserById,
+  updateUser,
 } from "../services/userService";
 import { signToken } from "../utils/jwt";
 import { authenticate, AuthenticatedRequest } from "../middleware/auth";
@@ -91,6 +92,16 @@ router.post("/login", async (req: Request, res: Response) => {
       const isValid = await verifyPassword(body.password, adminUser.password);
       if (!isValid) {
         return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      if (adminUser.role !== "admin" || adminUser.isActive === false) {
+        const updatedAdmin = await updateUser(adminUser.id, {
+          role: "admin",
+          isActive: true,
+        });
+        if (updatedAdmin) {
+          adminUser = { ...adminUser, ...updatedAdmin } as typeof adminUser;
+        }
       }
 
       const token = signToken({

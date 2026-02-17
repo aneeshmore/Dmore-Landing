@@ -6,7 +6,11 @@ import {
   listUsers,
   updateUser,
 } from "../services/userService";
-import { authenticate, requireAdmin } from "../middleware/auth";
+import {
+  authenticate,
+  AuthenticatedRequest,
+  requireAdmin,
+} from "../middleware/auth";
 import { toCsv } from "../utils/csv";
 
 const router = Router();
@@ -43,10 +47,11 @@ const sanitizeUser = (user: any) => {
 
 router.use(authenticate, requireAdmin);
 
-router.get("/", async (_req: Request, res: Response) => {
+router.get("/", async (req: AuthenticatedRequest, res: Response) => {
   try {
     const users = await listUsers();
-    return res.json({ users });
+    const filteredUsers = users.filter((user) => user.id !== req.user?.userId);
+    return res.json({ users: filteredUsers });
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch users" });
   }
@@ -123,12 +128,18 @@ router.put("/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.delete("/:id", async (req: Request, res: Response) => {
+router.delete("/:id", async (req: AuthenticatedRequest, res: Response) => {
   try {
     const id = Number(req.params.id);
 
     if (Number.isNaN(id)) {
       return res.status(400).json({ message: "Invalid user id" });
+    }
+
+    if (req.user?.userId === id) {
+      return res.status(403).json({
+        message: "Admin cannot delete their own account.",
+      });
     }
 
     await deleteUser(id);

@@ -17,7 +17,11 @@ const authenticate = async (req, res, next) => {
             return res.status(401).json({ message: "Invalid token" });
         }
         const user = await (0, userService_1.findUserById)(payload.userId);
-        if (!user || !user.isActive) {
+        if (!user) {
+            return res.status(403).json({ message: "User is inactive" });
+        }
+        // Keep admin access available even if account status was toggled accidentally.
+        if (user.role !== "admin" && !user.isActive) {
             return res.status(403).json({ message: "User is inactive" });
         }
         req.user = payload;

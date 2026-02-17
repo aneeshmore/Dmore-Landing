@@ -34,10 +34,11 @@ const sanitizeUser = (user) => {
     return rest;
 };
 router.use(auth_1.authenticate, auth_1.requireAdmin);
-router.get("/", async (_req, res) => {
+router.get("/", async (req, res) => {
     try {
         const users = await (0, userService_1.listUsers)();
-        return res.json({ users });
+        const filteredUsers = users.filter((user) => user.id !== req.user?.userId);
+        return res.json({ users: filteredUsers });
     }
     catch (error) {
         return res.status(500).json({ message: "Failed to fetch users" });
@@ -109,6 +110,11 @@ router.delete("/:id", async (req, res) => {
         const id = Number(req.params.id);
         if (Number.isNaN(id)) {
             return res.status(400).json({ message: "Invalid user id" });
+        }
+        if (req.user?.userId === id) {
+            return res.status(403).json({
+                message: "Admin cannot delete their own account.",
+            });
         }
         await (0, userService_1.deleteUser)(id);
         return res.status(204).send();

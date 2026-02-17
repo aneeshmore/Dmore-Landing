@@ -76,6 +76,15 @@ router.post("/login", async (req, res) => {
             if (!isValid) {
                 return res.status(401).json({ message: "Invalid credentials" });
             }
+            if (adminUser.role !== "admin" || adminUser.isActive === false) {
+                const updatedAdmin = await (0, userService_1.updateUser)(adminUser.id, {
+                    role: "admin",
+                    isActive: true,
+                });
+                if (updatedAdmin) {
+                    adminUser = { ...adminUser, ...updatedAdmin };
+                }
+            }
             const token = (0, jwt_1.signToken)({
                 userId: adminUser.id,
                 email: adminUser.email,
