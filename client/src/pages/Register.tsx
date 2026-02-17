@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+﻿import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useToast } from "../context/ToastContext";
@@ -15,26 +15,69 @@ const Register = () => {
   const [companyName, setCompanyName] = useState("");
   const [companyAddress, setCompanyAddress] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const isValidEmail = (value: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+  const isStrongEnoughPassword = (value: string) =>
+    value.length >= 6 && /[A-Za-z]/.test(value) && /\d/.test(value);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+    const trimmedCompanyName = companyName.trim();
+    const trimmedCompanyAddress = companyAddress.trim();
+
+    if (!trimmedName) {
+      showToast("Name is required.", "warning");
+      return;
+    }
+
+    if (!trimmedEmail || !isValidEmail(trimmedEmail)) {
+      showToast("Please enter a valid email address.", "warning");
+      return;
+    }
+
+    if (!isStrongEnoughPassword(password)) {
+      showToast(
+        "Password must be at least 6 characters with letters and numbers.",
+        "warning",
+      );
+      return;
+    }
+
+    if (!/^\d{10}$/.test(mobile)) {
+      showToast("Mobile number must be exactly 10 digits.", "warning");
+      return;
+    }
+
+    if (!trimmedCompanyName) {
+      showToast("Company name is required.", "warning");
+      return;
+    }
+
+    if (!trimmedCompanyAddress) {
+      showToast("Company address is required.", "warning");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Register user
       await register(
-        name,
-        email,
+        trimmedName,
+        trimmedEmail,
         password,
         mobile,
-        companyName,
-        companyAddress,
+        trimmedCompanyName,
+        trimmedCompanyAddress,
       );
 
-      // After successful registration → go to payment page
       showToast("Registration successful", "success");
       navigate("/payment");
     } catch (err: any) {
-      console.error("Registration error", err);
       showToast(
         err?.response?.data?.message || "Registration failed. Please try again.",
         "error",
@@ -86,7 +129,7 @@ const Register = () => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="********"
                 required
               />
             </div>
@@ -95,8 +138,13 @@ const Register = () => {
               <input
                 type="tel"
                 value={mobile}
-                onChange={(e) => setMobile(e.target.value)}
-                placeholder="+91 98765 43210"
+                onChange={(e) =>
+                  setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))
+                }
+                placeholder="9876543210"
+                inputMode="numeric"
+                pattern="[0-9]{10}"
+                maxLength={10}
                 required
               />
             </div>
@@ -117,7 +165,6 @@ const Register = () => {
                 onChange={(e) => setCompanyAddress(e.target.value)}
                 placeholder="Enter your factory address"
                 required
-                // rows={3}
                 style={{ resize: "vertical" }}
               />
             </div>
@@ -127,7 +174,7 @@ const Register = () => {
             className="btn primary register-btn"
             disabled={loading}
           >
-            {loading ? "Creating account…" : "Create account"}
+            {loading ? "Creating account..." : "Create account"}
           </button>
         </form>
 

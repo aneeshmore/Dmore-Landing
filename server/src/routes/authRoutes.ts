@@ -20,7 +20,7 @@ const registerSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(6),
-  mobile: z.string().min(6),
+  mobile: z.string().regex(/^\d{10}$/),
   companyName: z.string().min(2),
   companyAddress: z.string().min(4),
 });
@@ -42,7 +42,11 @@ router.post("/register", async (req: Request, res: Response) => {
       return res.status(403).json({ message: "This email is reserved" });
     }
 
-    const user = await createUser({ ...body, role: "user" });
+    const user = await createUser({
+      ...body,
+      role: "user",
+    });
+
     const token = signToken({
       userId: user.id,
       email: user.email,
@@ -52,12 +56,19 @@ router.post("/register", async (req: Request, res: Response) => {
     return res.status(201).json({ token, user: sanitizeUser(user) });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ errors: error.flatten() });
+      return res.status(400).json({
+        message: "Please enter valid registration details.",
+      });
     }
 
-    const message =
-      error instanceof Error ? error.message : "Registration failed";
-    return res.status(400).json({ message });
+    const message = error instanceof Error ? error.message : "";
+    if (message === "User already registered.") {
+      return res.status(400).json({ message: "User already registered." });
+    }
+
+    return res.status(400).json({
+      message: "Registration failed. Please try again.",
+    });
   }
 });
 
@@ -103,8 +114,9 @@ router.post("/login", async (req: Request, res: Response) => {
     });
     return res.json({ token, user: sanitizeUser(user) });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Login failed";
-    return res.status(400).json({ message });
+    return res.status(400).json({
+      message: "Login failed. Please check your credentials.",
+    });
   }
 });
 

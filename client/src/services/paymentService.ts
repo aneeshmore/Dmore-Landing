@@ -13,6 +13,10 @@ export interface VerifyPaymentResponse {
   message: string;
 }
 
+export interface PaymentStatusResponse {
+  paymentStatus: "Pending" | "Completed" | "Failed";
+}
+
 export interface CreateOrderParams {
   planType: PlanType;
   period: SubscriptionDuration;
@@ -40,6 +44,11 @@ export const paymentService = {
       razorpayPaymentId,
       razorpaySignature,
     });
+    return data;
+  },
+
+  async getPaymentStatus(): Promise<PaymentStatusResponse> {
+    const { data } = await api.get("/user/status");
     return data;
   },
 };

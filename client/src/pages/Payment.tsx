@@ -1,10 +1,11 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../context/AuthContext";
 import {
   paymentService,
   PRICING,
   type PlanPeriod,
+  type PaymentStatusResponse,
 } from "../services/paymentService";
 import type { PlanType, SubscriptionDuration } from "../types";
 import { useToast } from "../context/ToastContext";
@@ -26,19 +27,44 @@ const Payment = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
-  const [paymentCompleted, setPaymentCompleted] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<
+    PaymentStatusResponse["paymentStatus"] | null
+  >(null);
+  const [statusLoading, setStatusLoading] = useState(true);
 
-  const isUserPaymentCompleted = useMemo(() => {
-    if (!user || user.role !== "user") return false;
-    return paymentCompleted || user.accountStatus !== "pending_payment";
-  }, [paymentCompleted, user]);
+  const isUser = user?.role === "user";
+  const shouldShowSuccess = isUser && paymentStatus === "Completed";
+  const shouldShowFailed = isUser && paymentStatus === "Failed";
+  const shouldShowPayment = !isUser || paymentStatus === "Pending";
 
   useEffect(() => {
     if (!token) navigate("/login");
   }, [token, navigate]);
 
   useEffect(() => {
-    if (isUserPaymentCompleted) return;
+    if (!token || !isUser) {
+      setPaymentStatus("Pending");
+      setStatusLoading(false);
+      return;
+    }
+
+    const fetchPaymentStatus = async () => {
+      setStatusLoading(true);
+      try {
+        const data = await paymentService.getPaymentStatus();
+        setPaymentStatus(data.paymentStatus);
+      } catch {
+        setPaymentStatus("Pending");
+      } finally {
+        setStatusLoading(false);
+      }
+    };
+
+    fetchPaymentStatus();
+  }, [isUser, token]);
+
+  useEffect(() => {
+    if (!shouldShowPayment) return;
 
     const loadRazorpay = () => {
       return new Promise<boolean>((resolve) => {
@@ -65,10 +91,10 @@ const Payment = () => {
       }
       setRazorpayLoaded(true);
     });
-  }, [isUserPaymentCompleted, showToast]);
+  }, [shouldShowPayment, showToast]);
 
   const handlePayment = async () => {
-    if (!user || !token) return;
+    if (!user || !token || !shouldShowPayment) return;
 
     if (!window.Razorpay) {
       setError("Razorpay SDK not loaded. Please refresh.");
@@ -113,11 +139,17 @@ const Payment = () => {
               response.razorpay_signature,
             );
 
-            if (user.role !== "admin") {
-              const message = "Payment successful. Admin will contact you soon.";
-              setPaymentCompleted(true);
-              showToast(message, "success");
-              navigate("/payment", { replace: true });
+            if (isUser) {
+              const statusData = await paymentService.getPaymentStatus();
+              setPaymentStatus(statusData.paymentStatus);
+              if (statusData.paymentStatus === "Completed") {
+                showToast(
+                  "Payment successful. Admin will contact you soon.",
+                  "success",
+                );
+              } else if (statusData.paymentStatus === "Failed") {
+                showToast("Payment failed. Please try again.", "error");
+              }
             } else {
               showToast("Payment successful.", "success");
               navigate("/", { replace: true });
@@ -140,12 +172,30 @@ const Payment = () => {
 
       razorpay.open();
     } catch (err: any) {
-      const message =
-        err?.response?.data?.message ||
-        err.message ||
-        "Payment failed. Please try again.";
-      setError(message);
-      showToast(message, "error");
+      const backendStatus = err?.response?.data?.paymentStatus as
+        | "Pending"
+        | "Completed"
+        | "Failed"
+        | undefined;
+
+      if (backendStatus) {
+        setPaymentStatus(backendStatus);
+        if (backendStatus === "Completed") {
+          showToast(
+            "Payment successful. Admin will contact you soon.",
+            "success",
+          );
+        } else if (backendStatus === "Failed") {
+          showToast("Payment failed. Please try again.", "error");
+        }
+      } else {
+        const message =
+          err?.response?.data?.message ||
+          err.message ||
+          "Payment failed. Please try again.";
+        setError(message);
+        showToast(message, "error");
+      }
     } finally {
       setLoading(false);
     }
@@ -154,7 +204,19 @@ const Payment = () => {
   const plans: PlanType[] = ["basic", "pro"];
   const periods: PlanPeriod[] = ["monthly", "6months", "1year"];
 
-  if (isUserPaymentCompleted) {
+  if (statusLoading) {
+    return (
+      <div className="payment-page">
+        <div className="payment-container payment-success-container">
+          <div className="payment-header">
+            <h1>Loading...</h1>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (shouldShowSuccess) {
     return (
       <div className="payment-page">
         <div className="payment-container payment-success-container">
@@ -164,6 +226,19 @@ const Payment = () => {
           <div className="payment-success-message">
             Payment successful. Admin will contact you soon.
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (shouldShowFailed) {
+    return (
+      <div className="payment-page">
+        <div className="payment-container payment-success-container">
+          <div className="payment-header">
+            <h1>Payment Failed</h1>
+          </div>
+          <div className="payment-error">Payment failed. Please try again.</div>
         </div>
       </div>
     );
