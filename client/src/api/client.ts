@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://api.paintos.in';
 
 export const api = axios.create({
   baseURL: `${baseURL.replace(/\/$/, '')}/api`,
