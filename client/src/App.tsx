@@ -32,7 +32,9 @@ function App() {
 
           <Route
             path="/register"
-            element={token ? <Navigate to={authRedirect} replace /> : <Register />}
+            element={
+              token ? <Navigate to={authRedirect} replace /> : <Register />
+            }
           />
 
           <Route
@@ -88,7 +90,7 @@ function App() {
         </Routes>
       </main>
       <footer className="site-footer">
-        © 2026 Dmore Technologies. All Rights Reserved.
+        © 2026 Morex Technology. All Rights Reserved.
       </footer>
     </div>
   );

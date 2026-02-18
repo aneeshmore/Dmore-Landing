@@ -439,7 +439,11 @@ const Landing = () => {
                     <button
                       className={`btn ${plan.highlight ? "primary" : "ghost"}`}
                       onClick={() => handleBuyNow(plan.name, option.period)}
-                      style={{ width: "100%", textAlign: "center" }}
+                      style={{
+                        width: "100%",
+                        textAlign: "center",
+                        marginTop: "2.5rem",
+                      }}
                     >
                       Buy Now
                     </button>
