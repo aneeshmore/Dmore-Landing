@@ -31,11 +31,22 @@ const Payment = () => {
     PaymentStatusResponse["paymentStatus"] | null
   >(null);
   const [statusLoading, setStatusLoading] = useState(true);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponApplied, setCouponApplied] = useState(false);
+
+  const COUPON_CODE = "colorsocity";
+  const COUPON_DISCOUNT = 2000;
 
   const isUser = user?.role === "user";
   const shouldShowSuccess = isUser && paymentStatus === "Completed";
   const shouldShowFailed = isUser && paymentStatus === "Failed";
   const shouldShowPayment = !isUser || paymentStatus === "Pending";
+  const isCouponEligiblePlan = selectedPeriod === "1year";
+  const appliedDiscount = couponApplied && isCouponEligiblePlan ? COUPON_DISCOUNT : 0;
+  const displayTotal = Math.max(
+    PRICING[selectedPlan][selectedPeriod].amount - appliedDiscount,
+    0,
+  );
 
   useEffect(() => {
     if (!token) navigate("/login");
@@ -93,6 +104,25 @@ const Payment = () => {
     });
   }, [shouldShowPayment, showToast]);
 
+  useEffect(() => {
+    if (!isCouponEligiblePlan && couponApplied) {
+      setCouponApplied(false);
+    }
+  }, [isCouponEligiblePlan, couponApplied]);
+
+  const handleApplyCoupon = () => {
+    const normalizedCode = couponCode.trim().toLowerCase();
+
+    if (isCouponEligiblePlan && normalizedCode === COUPON_CODE) {
+      setCouponApplied(true);
+      showToast("Coupon applied! ₹2,000 discount applied.", "success");
+      return;
+    }
+
+    setCouponApplied(false);
+    showToast("Coupon not valid for this plan.", "error");
+  };
+
   const handlePayment = async () => {
     if (!user || !token || !shouldShowPayment) return;
 
@@ -108,6 +138,7 @@ const Payment = () => {
       const order = await paymentService.createOrder({
         planType: selectedPlan,
         period: selectedPeriod as SubscriptionDuration,
+        couponCode: couponApplied ? couponCode.trim() : undefined,
       });
 
       if (!order?.orderId) {
@@ -295,9 +326,40 @@ const Payment = () => {
               <span>{PRICING[selectedPlan][selectedPeriod].label}</span>
             </div>
 
+            <div className="summary-row">
+              <span>Coupon</span>
+              <span>{couponApplied && isCouponEligiblePlan ? "Applied" : "Not Applied"}</span>
+            </div>
+
+            <div className="summary-row coupon-row">
+              <input
+                type="text"
+                value={couponCode}
+                onChange={(e) => {
+                  setCouponCode(e.target.value);
+                  setCouponApplied(false);
+                }}
+                placeholder="Enter coupon code"
+                className="coupon-input"
+              />
+              <button
+                type="button"
+                className="coupon-apply-btn"
+                onClick={handleApplyCoupon}
+                disabled={loading}
+              >
+                Apply
+              </button>
+            </div>
+
+            <div className="summary-row">
+              <span>Discount</span>
+              <span>₹{appliedDiscount}</span>
+            </div>
+
             <div className="summary-row total">
               <span>Total</span>
-              <span>₹{PRICING[selectedPlan][selectedPeriod].amount}</span>
+              <span>₹{displayTotal}</span>
             </div>
 
             {error && <div className="payment-error">{error}</div>}
@@ -307,9 +369,7 @@ const Payment = () => {
               onClick={handlePayment}
               disabled={loading || !razorpayLoaded}
             >
-              {loading
-                ? "Processing..."
-                : `Pay ₹${PRICING[selectedPlan][selectedPeriod].amount}`}
+              {loading ? "Processing..." : `Pay ₹${displayTotal}`}
             </button>
           </div>
         </div>

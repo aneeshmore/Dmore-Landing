@@ -75,6 +75,14 @@ const AdminDashboard = () => {
     fetchUsers();
   }, []);
 
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      fetchUsers();
+    }, 10000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
   const handleDelete = async (id: number) => {
     if (!confirm("Delete this user?")) return;
     try {
@@ -165,8 +173,8 @@ const AdminDashboard = () => {
   const pendingPaymentCount = users.filter(
     (entry) => !entry.renewalDate,
   ).length;
-  const completedPaymentCount = users.filter(
-    (entry) => Boolean(entry.renewalDate),
+  const completedPaymentCount = users.filter((entry) =>
+    Boolean(entry.renewalDate),
   ).length;
   const activeUsersCount = users.filter(
     (entry) => entry.isActive !== false,
@@ -346,131 +354,151 @@ const AdminDashboard = () => {
                     </tr>
                   )}
 
-                  {users.map((entry) => (
-                    <tr
-                      key={entry.id}
-                      className={
-                        entry.accountStatus === "disabled" ? "row-disabled" : ""
-                      }
-                    >
-                      <td>
-                        <div className="customer-cell">
-                          <div className="customer-avatar">
-                            {entry.name?.charAt(0).toUpperCase() || "U"}
+                  {users.map((entry) => {
+                    const hasVerifiedPayment = Boolean(entry.renewalDate);
+                    const planLabel = hasVerifiedPayment
+                      ? (entry.planType ?? "-")
+                      : "-";
+                    const durationLabel = hasVerifiedPayment
+                      ? (entry.subscriptionDuration ?? "-")
+                      : "-";
+
+                    return (
+                      <tr
+                        key={entry.id}
+                        className={
+                          entry.accountStatus === "disabled"
+                            ? "row-disabled"
+                            : ""
+                        }
+                      >
+                        <td>
+                          <div className="customer-cell">
+                            <div className="customer-avatar">
+                              {entry.name?.charAt(0).toUpperCase() || "U"}
+                            </div>
+                            <div className="customer-info">
+                              <span className="customer-name">
+                                {entry.name}
+                              </span>
+                              <span className="customer-email">
+                                {entry.email}
+                              </span>
+                            </div>
                           </div>
-                          <div className="customer-info">
-                            <span className="customer-name">{entry.name}</span>
-                            <span className="customer-email">
-                              {entry.email}
+                        </td>
+
+                        <td>{entry.mobile || "-"}</td>
+
+                        <td>
+                          {entry.companyName ? (
+                            <div className="company-info">
+                              <span>{entry.companyName}</span>
+                              <small>{entry.companyAddress || ""}</small>
+                            </div>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
+
+                        <td>
+                          {entry.domain ? (
+                            <span className="domain-text">{entry.domain}</span>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
+
+                        <td>
+                          {entry.databaseUrl ? (
+                            <span className="domain-text" title={entry.databaseUrl}>
+                              {entry.databaseUrl.length > 30 ? entry.databaseUrl.substring(0, 30) + "..." : entry.databaseUrl}
+                            </span>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
+
+                        <td>
+                          <span className="users-count">
+                            {entry.numberOfUsers ?? 1}
+                          </span>
+                        </td>
+
+                        <td>
+                          {hasVerifiedPayment && entry.planType ? (
+                            <span
+                              className={`plan-badge ${entry.planType === "pro"
+                                ? "plan-pro"
+                                : "plan-basic"
+                                }`}
+                            >
+                              {planLabel}
+                            </span>
+                          ) : (
+                            <span>-</span>
+                          )}
+                        </td>
+
+                        <td>
+                          <span className="duration-text">{durationLabel}</span>
+                        </td>
+
+                        <td>
+                          <span className={`toggle-label ${entry.accountStatus === "active" ? "active" : "disabled"}`}>
+                            {entry.accountStatus}
+                          </span>
+                        </td>
+
+                        <td>
+                          <div className="user-status-cell">
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={entry.isActive !== false}
+                              className={`status-switch ${entry.isActive !== false ? "on" : "off"
+                                }`}
+                              onClick={() => handleToggleUserStatus(entry)}
+                            >
+                              <span className="status-switch-thumb" />
+                            </button>
+                            <span className="user-status-text">
+                              {entry.isActive !== false ? "Active" : "Inactive"}
                             </span>
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      <td>{entry.mobile || "-"}</td>
+                        <td>
+                          <span className={`payment-status-badge ${entry.renewalDate ? "completed" : "pending"}`}>
+                            {entry.renewalDate ? "Completed" : "Pending"}
+                          </span>
+                        </td>
 
-                      <td>
-                        {entry.companyName ? (
-                          <div className="company-info">
-                            <span>{entry.companyName}</span>
-                            <small>{entry.companyAddress || ""}</small>
+                        <td>
+                          <span className="date-text">
+                            {entry.createdAt ? new Date(entry.createdAt as string).toLocaleDateString() : "-"}
+                          </span>
+                        </td>
+
+                        <td>
+                          <div className="action-buttons">
+                            <button
+                              className="btn-edit"
+                              onClick={() => openEditModal(entry)}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="btn-delete"
+                              onClick={() => handleDelete(entry.id)}
+                            >
+                              Delete
+                            </button>
                           </div>
-                        ) : (
-                          "-"
-                        )}
-                      </td>
-
-                      <td>
-                        {entry.domain ? (
-                          <span className="domain-text">{entry.domain}</span>
-                        ) : (
-                          "-"
-                        )}
-                      </td>
-
-                      <td>
-                        {entry.databaseUrl ? (
-                          <span className="domain-text" title={entry.databaseUrl}>
-                            {entry.databaseUrl.length > 30 ? entry.databaseUrl.substring(0, 30) + "..." : entry.databaseUrl}
-                          </span>
-                        ) : (
-                          "-"
-                        )}
-                      </td>
-
-                      <td>
-                        <span className="users-count">
-                          {entry.numberOfUsers ?? 1}
-                        </span>
-                      </td>
-
-                      <td>
-                        <span
-                          className={`plan-badge ${entry.planType === "pro" ? "plan-pro" : "plan-basic"}`}
-                        >
-                          {entry.planType || "basic"}
-                        </span>
-                      </td>
-
-                      <td>
-                        <span className="duration-text">
-                          {entry.subscriptionDuration || "monthly"}
-                        </span>
-                      </td>
-
-                      <td>
-                        <div className="user-status-cell">
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={entry.isActive !== false}
-                            className={`status-switch ${entry.isActive !== false ? "on" : "off"}`}
-                            onClick={() => handleToggleUserStatus(entry)}
-                          >
-                            <span className="status-switch-thumb" />
-                          </button>
-                          <span className="user-status-text">
-                            {entry.isActive !== false ? "Active" : "Inactive"}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td>
-                        <span className={`toggle-label ${entry.accountStatus === "active" ? "active" : "disabled"}`}>
-                          {entry.accountStatus}
-                        </span>
-                      </td>
-
-                      <td>
-                        <span className={`payment-status-badge ${entry.renewalDate ? "completed" : "pending"}`}>
-                          {entry.renewalDate ? "Completed" : "Pending"}
-                        </span>
-                      </td>
-
-                      <td>
-                        <span className="date-text">
-                          {entry.createdAt ? new Date(entry.createdAt as string).toLocaleDateString() : "-"}
-                        </span>
-                      </td>
-
-                      <td>
-                        <div className="action-buttons">
-                          <button
-                            className="btn-edit"
-                            onClick={() => openEditModal(entry)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="btn-delete"
-                            onClick={() => handleDelete(entry.id)}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

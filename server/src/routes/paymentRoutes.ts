@@ -44,18 +44,20 @@ console.log("🔥 PAYMENT ROUTES LOADED");
 const pricing = {
   basic: {
     monthly: 1499,
-    "6months": 7499,
-    "1year": 11999,
+    "6months": 7999,
+    "1year": 14999,
   },
   pro: {
-    monthly: 2999,
-    "6months": 16499,
-    "1year": 29999,
+    monthly: 4999,
+    "6months": 26999,
+    "1year": 49999,
   },
 } as const;
 
 type PlanType = keyof typeof pricing;
 type PlanPeriod = keyof (typeof pricing)["basic"];
+const COUPON_CODE = "colorsocity";
+const COUPON_DISCOUNT = 2000;
 
 const toPaymentStatus = (user: {
   accountStatus?: string | null;
@@ -80,6 +82,7 @@ const toPaymentStatus = (user: {
 const createOrderSchema = z.object({
   planType: z.enum(["basic", "pro"]),
   period: z.enum(["monthly", "6months", "1year"]),
+  couponCode: z.string().optional(),
 });
 
 /* ==========================
@@ -98,7 +101,7 @@ router.post(
         });
       }
 
-      const { planType, period } = createOrderSchema.parse(req.body);
+      const { planType, period, couponCode } = createOrderSchema.parse(req.body);
       const requestingUser = await findUserById(req.user!.userId);
 
       if (!requestingUser) {
@@ -125,7 +128,11 @@ router.post(
         });
       }
 
-      const amountInPaise = amount * 100;
+      const normalizedCoupon = couponCode?.trim().toLowerCase();
+      const isCouponApplicable =
+        period === "1year" && normalizedCoupon === COUPON_CODE;
+      const finalAmount = isCouponApplicable ? amount - COUPON_DISCOUNT : amount;
+      const amountInPaise = finalAmount * 100;
 
       const order = await razorpay.orders.create({
         amount: amountInPaise,
@@ -135,6 +142,7 @@ router.post(
           planType,
           period,
           userId: String(req.user!.userId),
+          couponApplied: isCouponApplicable ? "true" : "false",
         },
       });
 
@@ -238,11 +246,29 @@ router.post(
 
       const planType = notes.planType as PlanType;
       const period = notes.period as PlanPeriod;
+      const couponApplied = notes.couponApplied === "true";
       const userId = Number(notes.userId);
 
       if (!planType || !period || !userId) {
         return res.status(400).json({
           message: "Invalid order metadata",
+        });
+      }
+
+      const baseAmount = pricing[planType][period];
+      const canApplyCoupon = period === "1year";
+      const expectedAmountInPaise =
+        (couponApplied && canApplyCoupon ? baseAmount - COUPON_DISCOUNT : baseAmount) *
+        100;
+      if (order.amount !== expectedAmountInPaise) {
+        return res.status(400).json({
+          message: "Order amount mismatch for selected plan",
+        });
+      }
+
+      if (req.user?.userId !== userId) {
+        return res.status(403).json({
+          message: "Payment verification user mismatch",
         });
       }
 
@@ -292,3 +318,4 @@ router.post(
 );
 
 export default router;
+

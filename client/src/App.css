@@ -180,6 +180,13 @@
   color: #2563EB;
 }
 
+.nav-link-button {
+  border: none;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
 .nav-actions {
   display: flex;
   align-items: center;
@@ -1066,8 +1073,9 @@
 
 .pricing-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 380px));
+  justify-content: center;
+  gap: 1.5rem;
   margin-top: 2rem;
 }
 
@@ -1086,6 +1094,9 @@
   border: 1px solid #E5E7EB;
   border-radius: 20px;
   padding: 2rem;
+  width: 100%;
+  max-width: 380px;
+  margin: 0 auto;
   position: relative;
   transition: all 0.3s ease;
   display: flex;
@@ -1159,6 +1170,36 @@
 .price-period {
   color: #6B7280;
   font-size: 1rem;
+}
+
+
+.pricing-grid-compact {
+  grid-template-columns: repeat(3, minmax(220px, 300px));
+  justify-content: center;
+}
+
+.pricing-card-compact {
+  min-height: 280px;
+  max-width: 300px;
+}
+
+.pricing-card-compact .pricing-header {
+  margin-bottom: 0.75rem;
+}
+
+.pricing-card-compact .pricing-price {
+  margin: 0.75rem 0 1.25rem 0;
+  padding-bottom: 1rem;
+}
+
+.pricing-included-shared {
+  width: min(940px, 100%);
+  margin: 1.25rem auto 0;
+  padding: 1.2rem;
+  border: 1px solid #E5E7EB;
+  border-radius: 16px;
+  background: #FFFFFF;
+  text-align: left;
 }
 
 .pricing-card .btn {
@@ -2360,6 +2401,65 @@
   font-size: 15px;
 }
 
+.coupon-row {
+  align-items: center;
+  gap: 10px;
+}
+
+.coupon-input {
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+  color: #f8fafc;
+  padding: 0 12px;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.coupon-input::placeholder {
+  color: rgba(203, 213, 225, 0.8);
+  text-transform: none;
+}
+
+.coupon-input:focus {
+  outline: none;
+  border-color: #818cf8;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.07));
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.2);
+}
+
+.coupon-apply-btn {
+  height: 42px;
+  min-width: 96px;
+  border-radius: 10px;
+  border: 1px solid #6366f1;
+  background: linear-gradient(135deg, #6366f1, #4338ca);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.coupon-apply-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(99, 102, 241, 0.35);
+}
+
+.coupon-apply-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 .pay-btn {
   width: 100%;
   margin-top: 15px;
@@ -2492,6 +2592,9 @@
 }
 
 @media (max-width: 992px) {
+  .pricing-grid-compact {
+    grid-template-columns: repeat(2, minmax(220px, 300px));
+  }
   .nav-links {
     gap: 0.55rem;
     margin: 0 0.8rem;
@@ -2531,6 +2634,13 @@
 }
 
 @media (max-width: 768px) {
+  .pricing-grid-compact {
+    grid-template-columns: 1fr;
+  }
+
+  .pricing-card-compact {
+    max-width: 100%;
+  }
   .navbar {
     flex-wrap: wrap;
     align-items: center;
@@ -2625,6 +2735,15 @@
     grid-template-columns: 1fr;
   }
 
+  .coupon-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .coupon-apply-btn {
+    width: 100%;
+  }
+
   .basic-pricing-grid,
   .pro-pricing-grid {
     grid-template-columns: 1fr;
@@ -2655,5 +2774,115 @@
 
   .profile-trigger {
     padding-right: 0.45rem;
+  }
+}
+
+
+/* Pricing card layout refinements */
+.pricing-grid-compact {
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.pricing-card-compact {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 0.85rem;
+  min-height: 320px;
+  max-width: 300px;
+  padding: 1.5rem 1.25rem;
+  border-radius: 18px;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+.pricing-card-compact:hover {
+  transform: translateY(-4px);
+  border-color: #2563EB;
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.14);
+}
+
+.pricing-card-compact .pricing-header {
+  margin-bottom: 0;
+}
+
+.pricing-card-compact .pricing-header h3 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #0F1724;
+}
+
+.pricing-card-compact .pricing-price {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  margin: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.pricing-card-compact .price-amount {
+  font-size: 2.1rem;
+  line-height: 1.1;
+  font-weight: 800;
+  color: #1D4ED8;
+}
+
+.pricing-card-compact .price-period {
+  font-size: 0.9rem;
+  color: #6B7280;
+}
+
+.pricing-card-compact .btn {
+  margin-top: auto;
+  width: 100%;
+  max-width: 190px;
+  align-self: center;
+  text-align: center;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.pricing-card-compact .btn:hover {
+  transform: translateY(-1px);
+}
+
+@media (max-width: 992px) {
+  .pricing-card-compact {
+    min-height: 300px;
+    max-width: 280px;
+    padding: 1.3rem 1rem;
+  }
+
+  .pricing-card-compact .price-amount {
+    font-size: 1.95rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .pricing-grid-compact {
+    gap: 0.85rem;
+  }
+
+  .pricing-card-compact {
+    width: min(92vw, 320px);
+    max-width: 320px;
+    min-height: 0;
+    padding: 1.15rem 1rem;
+    margin: 0 auto;
+  }
+
+  .pricing-card-compact .price-amount {
+    font-size: 1.8rem;
+  }
+
+  .pricing-card-compact .price-period {
+    font-size: 0.85rem;
   }
 }
