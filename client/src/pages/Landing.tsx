@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuthContext } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 
@@ -147,15 +147,20 @@ const pricingPlans = [
     highlight: false,
     pricingOptions: [
       { label: "Monthly", period: "/month", price: "Rs. 1,499" },
-      { label: "6 Months", period: "/6month", price: "Rs. 7,499" },
-      { label: "1 Year", period: "/1Year", price: "Rs. 11,999" },
+      { label: "6 Months", period: "/6month", price: "Rs. 7,999" },
+      { label: "1 Year", period: "/1Year", price: "Rs. 14,999" },
     ],
     features: [
-      "CRM Management",
-      "Order Management",
-      "Basic Production Planning",
-      "Inventory Tracking",
       "Single User only",
+      "Quotation Management",
+      "Invoice",
+      "Bach Chart Generation",
+      "1K formulation master",
+      "2K formulation master",
+      "Order Tracing",
+      "Inventory/Stock control",
+      "Outstanding & Payment Report",
+      "CRM Management",
     ],
   },
   {
@@ -163,26 +168,27 @@ const pricingPlans = [
     description: "For growing paint manufacturers wanting full control",
     highlight: true,
     pricingOptions: [
-      { label: "Monthly", period: "/month", price: "Rs. 2,999" },
-      { label: "6 Months", period: "/6month", price: "Rs. 16,499" },
-      { label: "1 Year", period: "/1Year", price: "Rs. 29,999" },
+      { label: "Monthly", period: "/month", price: "Rs. 4,999" },
+      { label: "6 Months", period: "/6month", price: "Rs. 26,999" },
+      { label: "1 Year", period: "/1Year", price: "Rs. 49,999" },
     ],
     features: [
       "Everything in Basic +",
-      "2K Production Planning",
-      "Quality Control Module",
-      "Formulation Intelligence",
-      "Upto 10 Users",
-      "Dispatch & Invoicing",
-      "Payments Dashboard",
-      "Priority Support",
-      "Custom Reports",
+      "Up to 10 users",
+      "Dealer Login",
+      "Accounts Payment Approvals ",
+      "Daily Consumption Report",
+      "Advanced Reports",
+      "Multi User Login ",
+      "Role Based Access",
+      "Dispatch Management",
     ],
   },
 ];
 
 const Landing = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, token } = useAuthContext();
   const { showToast } = useToast();
   const [selectedPricingPlan, setSelectedPricingPlan] = useState<
@@ -232,6 +238,32 @@ const Landing = () => {
       return;
     }
   };
+
+  const scrollToSection = (sectionId: string) => {
+    const section = document.getElementById(sectionId);
+    if (!section) return false;
+
+    section.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.history.replaceState(null, "", `/#${sectionId}`);
+    return true;
+  };
+
+  useEffect(() => {
+    const sectionId = location.hash.replace("#", "");
+    if (!sectionId) return;
+
+    let attempts = 0;
+    const maxAttempts = 12;
+
+    const tryScroll = () => {
+      const didScroll = scrollToSection(sectionId);
+      if (didScroll || attempts >= maxAttempts) return;
+      attempts += 1;
+      window.setTimeout(tryScroll, 60);
+    };
+
+    tryScroll();
+  }, [location.hash]);
 
   return (
     <div className="landing">
@@ -443,10 +475,26 @@ const Landing = () => {
             <h4>Product</h4>
             <ul>
               <li>
-                <a href="#features">Features</a>
+                <a
+                  href="#features"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    scrollToSection("features");
+                  }}
+                >
+                  Features
+                </a>
               </li>
               <li>
-                <a href="#pricing">Pricing</a>
+                <a
+                  href="#pricing"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    scrollToSection("pricing");
+                  }}
+                >
+                  Pricing
+                </a>
               </li>
               <li>
                 <a href="/">Security</a>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { useAuth } from "../hooks/useAuth";
 import { useToast } from "../context/ToastContext";
@@ -9,6 +9,7 @@ const Navbar = () => {
   const { user, logout } = useAuth();
   const { showToast } = useToast();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
@@ -104,6 +105,19 @@ const Navbar = () => {
     }
   };
 
+  const handleSectionNavigation = (sectionId: string) => {
+    if (pathname === "/") {
+      const section = document.getElementById(sectionId);
+      if (section) {
+        section.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      window.history.replaceState(null, "", `/#${sectionId}`);
+      return;
+    }
+
+    navigate(`/#${sectionId}`);
+  };
+
   return (
     <header className="navbar">
       <Link to="/" className="brand">
@@ -124,15 +138,23 @@ const Navbar = () => {
         <Link className={isActive("/")} to="/">
           Home
         </Link>
-        <a className="nav-link" href="#features">
+        <button
+          className="nav-link nav-link-button"
+          type="button"
+          onClick={() => handleSectionNavigation("features")}
+        >
           Features
-        </a>
+        </button>
         <Link className={isActive("/about")} to="/about">
           About
         </Link>
-        <a className="nav-link" href="#pricing">
+        <button
+          className="nav-link nav-link-button"
+          type="button"
+          onClick={() => handleSectionNavigation("pricing")}
+        >
           Pricing
-        </a>
+        </button>
 
         {user?.role === "admin" ? (
           <Link className={isActive("/admin-dashboard")} to="/admin-dashboard">

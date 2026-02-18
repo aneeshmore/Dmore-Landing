@@ -20,6 +20,7 @@ export interface PaymentStatusResponse {
 export interface CreateOrderParams {
   planType: PlanType;
   period: SubscriptionDuration;
+  couponCode?: string;
 }
 
 export const paymentService = {
@@ -57,13 +58,13 @@ export const paymentService = {
 export const PRICING = {
   basic: {
     monthly: { amount: 1499, label: "Monthly" },
-    "6months": { amount: 7499, label: "6 Months" },
-    "1year": { amount: 11999, label: "1 Year" },
+    "6months": { amount: 7999, label: "6 Months" },
+    "1year": { amount: 14999, label: "1 Year" },
   },
   pro: {
-    monthly: { amount: 2999, label: "Monthly" },
-    "6months": { amount: 16499, label: "6 Months" },
-    "1year": { amount: 29999, label: "1 Year" },
+    monthly: { amount: 4999, label: "Monthly" },
+    "6months": { amount: 26999, label: "6 Months" },
+    "1year": { amount: 49999, label: "1 Year" },
   },
 };
 
