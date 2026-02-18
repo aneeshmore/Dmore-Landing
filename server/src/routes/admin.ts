@@ -28,6 +28,8 @@ const registerTenantSchema = z.object({
   planType: z.enum(["basic", "pro"]).optional(),
   subscriptionDuration: z.enum(["monthly", "6months", "1year"]).optional(),
   numberOfUsers: z.string().optional(), // Receive as string from form
+  renewalDate: z.string().optional(),
+  accountStatus: z.enum(["pending_payment", "pending_approval", "active", "disabled"]).optional(),
 });
 
 const router = express.Router();
@@ -122,7 +124,9 @@ router.post(
         companyAddress,
         planType,
         subscriptionDuration,
-        numberOfUsers
+        numberOfUsers,
+        renewalDate,
+        accountStatus
       } = registerTenantSchema.parse(req.body);
 
       // 1. Update or create the user record in the landing page database
@@ -172,7 +176,8 @@ router.post(
               planType: planType as "basic" | "pro",
               subscriptionDuration: subscriptionDuration as "monthly" | "6months" | "1year",
               numberOfUsers: numberOfUsers ? parseInt(numberOfUsers) : 1,
-              accountStatus: "active"
+              accountStatus: accountStatus || "active",
+              renewalDate: renewalDate ? new Date(renewalDate) : undefined
             });
             console.log(`User ${email} created/synced in landing page DB`);
 

@@ -82,16 +82,23 @@
   box-shadow: 0 15px 35px rgba(0, 0, 0, 0.06);
 }
 
+.status-cards-row {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
 .admin-password-card {
   margin-bottom: 20px;
 }
 
-.admin-payment-status-card {
-  margin-bottom: 20px;
-}
-
+.admin-payment-status-card,
 .admin-user-status-card {
-  margin-bottom: 20px;
+  flex: 1;
+  min-width: 300px;
+  /* Ensure they don't get too small */
+  margin-bottom: 0;
 }
 
 .payment-status-grid {

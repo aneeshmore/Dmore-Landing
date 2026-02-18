@@ -35,7 +35,7 @@ const userSchema = z.object({
   accountStatus: z
     .enum(["pending_payment", "pending_approval", "active", "disabled"])
     .optional(),
-  renewalDate: z.string().datetime().optional(),
+  renewalDate: z.string().datetime().nullable().optional(),
 });
 
 // For updates, all fields optional
@@ -118,6 +118,8 @@ router.put("/:id", async (req: Request, res: Response) => {
 
     if (body.renewalDate) {
       body.renewalDate = new Date(body.renewalDate) as any;
+    } else if (body.renewalDate === null) {
+      body.renewalDate = null as any;
     }
 
     const user = await updateUser(id, body as any);

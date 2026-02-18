@@ -16,6 +16,7 @@ interface EditFormState {
   numberOfUsers: string;
   planType: string;
   subscriptionDuration: string;
+  paymentStatus: "pending" | "completed";
 }
 
 const AdminDashboard = () => {
@@ -38,6 +39,7 @@ const AdminDashboard = () => {
     numberOfUsers: "1",
     planType: "basic",
     subscriptionDuration: "monthly",
+    paymentStatus: "pending",
   });
 
   const [isAddTenantModalOpen, setIsAddTenantModalOpen] = useState(false);
@@ -54,7 +56,8 @@ const AdminDashboard = () => {
     domain: "",
     planType: "basic",
     subscriptionDuration: "monthly",
-    numberOfUsers: "1"
+    numberOfUsers: "1",
+    paymentStatus: "pending"
   });
 
   const fetchUsers = async () => {
@@ -110,6 +113,7 @@ const AdminDashboard = () => {
       numberOfUsers: String(entry.numberOfUsers ?? 1),
       planType: entry.planType || "basic",
       subscriptionDuration: entry.subscriptionDuration || "monthly",
+      paymentStatus: entry.renewalDate ? "completed" : "pending",
     });
     setIsEditModalOpen(true);
   };
@@ -132,7 +136,7 @@ const AdminDashboard = () => {
 
     setEditLoading(true);
     try {
-      await api.put(`/users/${editUserId}`, {
+      const payload: any = {
         name: editForm.name,
         email: editForm.email,
         mobile: editForm.mobile,
@@ -143,7 +147,27 @@ const AdminDashboard = () => {
         numberOfUsers,
         planType: editForm.planType,
         subscriptionDuration: editForm.subscriptionDuration,
-      });
+      };
+
+      if (editForm.paymentStatus === "completed") {
+        // If switching to completed or staying completed, ensure we have a validity date.
+        // If it was already completed (has renewalDate), we might want to keep it or extend it? 
+        // Simple logic: if setting to completed, set to now + duration.
+        // Or if we want to preserve existing date if it exists? 
+        // Let's stick to "Marking as Completed resets/sets the date" for manual admin action.
+        const now = new Date();
+        if (editForm.subscriptionDuration === "monthly") now.setMonth(now.getMonth() + 1);
+        else if (editForm.subscriptionDuration === "6months") now.setMonth(now.getMonth() + 6);
+        else if (editForm.subscriptionDuration === "1year") now.setFullYear(now.getFullYear() + 1);
+        payload.renewalDate = now.toISOString();
+        payload.accountStatus = "active";
+      } else {
+        // If setting to pending, clear the renewal date
+        payload.renewalDate = null;
+        payload.accountStatus = "pending_payment";
+      }
+
+      await api.put(`/users/${editUserId}`, payload);
       showToast("User details updated successfully", "success");
       closeEditModal();
       fetchUsers();
@@ -184,7 +208,21 @@ const AdminDashboard = () => {
     e.preventDefault();
     setAddTenantLoading(true);
     try {
-      const { data } = await api.post("/admin/add-tenant", addTenantForm);
+      const payload: any = { ...addTenantForm };
+
+      if (addTenantForm.paymentStatus === "completed") {
+        const now = new Date();
+        if (addTenantForm.subscriptionDuration === "monthly") now.setMonth(now.getMonth() + 1);
+        else if (addTenantForm.subscriptionDuration === "6months") now.setMonth(now.getMonth() + 6);
+        else if (addTenantForm.subscriptionDuration === "1year") now.setFullYear(now.getFullYear() + 1);
+        payload.renewalDate = now.toISOString();
+        payload.accountStatus = "active";
+      } else {
+        payload.renewalDate = null;
+        payload.accountStatus = "pending_payment";
+      }
+
+      const { data } = await api.post("/admin/add-tenant", payload);
       showToast(data.message || "Tenant registered successfully", "success");
       setIsAddTenantModalOpen(false);
       setAddTenantForm({
@@ -199,7 +237,8 @@ const AdminDashboard = () => {
         domain: "",
         planType: "basic",
         subscriptionDuration: "monthly",
-        numberOfUsers: "1"
+        numberOfUsers: "1",
+        paymentStatus: "pending"
       });
     } catch (err: any) {
       showToast(
@@ -255,38 +294,40 @@ const AdminDashboard = () => {
       </div>
 
       <div className="admin-content">
-        <div className="admin-card admin-payment-status-card">
-          <div className="admin-card-header">
-            <h2>Payment Status</h2>
-          </div>
-          <div className="payment-status-grid">
-            <div className="payment-status-item pending">
-              <span className="payment-status-value">
-                {pendingPaymentCount}
-              </span>
-              <span className="payment-status-label">Pending</span>
+        <div className="status-cards-row">
+          <div className="admin-card admin-payment-status-card">
+            <div className="admin-card-header">
+              <h2>Payment Status</h2>
             </div>
-            <div className="payment-status-item completed">
-              <span className="payment-status-value">
-                {completedPaymentCount}
-              </span>
-              <span className="payment-status-label">Completed</span>
+            <div className="payment-status-grid">
+              <div className="payment-status-item pending">
+                <span className="payment-status-value">
+                  {pendingPaymentCount}
+                </span>
+                <span className="payment-status-label">Pending</span>
+              </div>
+              <div className="payment-status-item completed">
+                <span className="payment-status-value">
+                  {completedPaymentCount}
+                </span>
+                <span className="payment-status-label">Completed</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="admin-card admin-user-status-card">
-          <div className="admin-card-header">
-            <h2>User Status Management</h2>
-          </div>
-          <div className="payment-status-grid">
-            <div className="payment-status-item completed">
-              <span className="payment-status-value">{activeUsersCount}</span>
-              <span className="payment-status-label">Active Users</span>
+          <div className="admin-card admin-user-status-card">
+            <div className="admin-card-header">
+              <h2>User Status Management</h2>
             </div>
-            <div className="payment-status-item pending">
-              <span className="payment-status-value">{inactiveUsersCount}</span>
-              <span className="payment-status-label">Inactive Users</span>
+            <div className="payment-status-grid">
+              <div className="payment-status-item completed">
+                <span className="payment-status-value">{activeUsersCount}</span>
+                <span className="payment-status-label">Active Users</span>
+              </div>
+              <div className="payment-status-item pending">
+                <span className="payment-status-value">{inactiveUsersCount}</span>
+                <span className="payment-status-label">Inactive Users</span>
+              </div>
             </div>
           </div>
         </div>
@@ -657,6 +698,32 @@ const AdminDashboard = () => {
                   />
                 </div>
 
+                <div className="form-group" style={{ marginTop: "1rem" }}>
+                  <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500 }}>Payment Status</label>
+                  <div style={{ display: "flex", gap: "15px" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "5px", cursor: "pointer" }}>
+                      <input
+                        type="radio"
+                        name="paymentStatus"
+                        value="pending"
+                        checked={editForm.paymentStatus === "pending"}
+                        onChange={() => setEditForm(prev => ({ ...prev, paymentStatus: "pending" }))}
+                      />
+                      Pending
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: "5px", cursor: "pointer" }}>
+                      <input
+                        type="radio"
+                        name="paymentStatus"
+                        value="completed"
+                        checked={editForm.paymentStatus === "completed"}
+                        onChange={() => setEditForm(prev => ({ ...prev, paymentStatus: "completed" }))}
+                      />
+                      Completed (Active)
+                    </label>
+                  </div>
+                </div>
+
                 <div className="admin-modal-actions">
                   <button
                     type="button"
@@ -830,6 +897,32 @@ const AdminDashboard = () => {
                       setAddTenantForm((prev) => ({ ...prev, numberOfUsers: e.target.value }))
                     }
                   />
+                </div>
+
+                <div className="form-group" style={{ marginTop: "1rem" }}>
+                  <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500 }}>Payment Status</label>
+                  <div style={{ display: "flex", gap: "15px" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "5px", cursor: "pointer" }}>
+                      <input
+                        type="radio"
+                        name="addTenantPaymentStatus"
+                        value="pending"
+                        checked={addTenantForm.paymentStatus === "pending"}
+                        onChange={() => setAddTenantForm(prev => ({ ...prev, paymentStatus: "pending" }))}
+                      />
+                      Pending
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: "5px", cursor: "pointer" }}>
+                      <input
+                        type="radio"
+                        name="addTenantPaymentStatus"
+                        value="completed"
+                        checked={addTenantForm.paymentStatus === "completed"}
+                        onChange={() => setAddTenantForm(prev => ({ ...prev, paymentStatus: "completed" }))}
+                      />
+                      Completed (Active)
+                    </label>
+                  </div>
                 </div>
 
                 <div className="admin-modal-actions">
