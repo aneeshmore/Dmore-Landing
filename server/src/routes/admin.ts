@@ -10,6 +10,7 @@ import { findUserById, updateUser } from "../services/userService";
 import { verifyPassword } from "../utils/password";
 import { exec } from "child_process";
 import path from "path";
+import { runTenantRegistration } from "../services/tenantRegistrationService";
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(6),
@@ -132,34 +133,13 @@ router.post(
       // 1. Update or create the user record in the landing page database
       // We'll search by company name or domain if provided, but since this is for "Add New Client",
       // we might want to just store this registration.
-      // For now, let's just proceed with the OMS registration and assume the user list
-      // is managed primarily via the OMS script's output or manual entry.
       // ACTUALLY, the user wants to manage it via UI. So let's create a placeholder user if needed.
 
       const domain = `${tenantId}.localhost`; // Default logic
 
-      // Run the script
-      const omsPath = path.resolve(__dirname, "../../../../version/server");
-      const scriptPath = path.join(omsPath, "src/db/scripts/register-tenant.js");
-
-      console.log(`Executing: node ${scriptPath} ${tenantId} ${databaseUrl}`);
-
-      exec(`node "${scriptPath}" ${tenantId} "${databaseUrl}"`,
-        { cwd: omsPath },
-        async (error, stdout, stderr) => {
-          if (error) {
-            console.error(`Registration error: ${error.message}`);
-            return res.status(500).json({
-              message: "Registration failed",
-              error: error.message,
-              details: stderr
-            });
-          }
-
-
-          // 2. On success, ensure we have a record in the landing page DB
+      runTenantRegistration(tenantId, databaseUrl)
+        .then(async (stdout) => {
           try {
-            // We use createUser service which handles password hashing and duplicate checks
             const { createUser } = await import("../services/userService");
 
             await createUser({
@@ -180,20 +160,23 @@ router.post(
               renewalDate: renewalDate ? new Date(renewalDate) : undefined
             });
             console.log(`User ${email} created/synced in landing page DB`);
-
+            res.json({ message: `Tenant ${tenantId} registered successfully`, output: stdout });
           } catch (dbError: any) {
-            console.error("Failed to sync tenant to landing page DB:", dbError);
-            // If user already exists (e.g. email dup), we might want to update? 
-            // For now, we log it. The OMS part succeeeded.
-            if (dbError.message === "User already registered.") {
-              console.log("User already exists, skipping creation.");
-            }
+            console.error(`DB Sync Error: ${dbError.message}`);
+            res.json({
+              message: `Tenant ${tenantId} registered in OMS, but DB sync failed`,
+              error: dbError.message,
+              output: stdout
+            });
           }
-
-          console.log(`Registration output: ${stdout}`);
-          res.json({ message: `Tenant ${tenantId} registered successfully`, output: stdout });
-        }
-      );
+        })
+        .catch((error) => {
+          console.error(`Registration error: ${error.message}`);
+          res.status(500).json({
+            message: "Registration failed",
+            error: error.message
+          });
+        });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid request payload", errors: error.errors });

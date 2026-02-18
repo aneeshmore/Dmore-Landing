@@ -1,10 +1,9 @@
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db } from "../db";
-import { NewUser, User, users } from "../db/schema";
+import { NewUser, users, type User } from "../db/schema";
 import { hashPassword, verifyPassword } from "../utils/password";
 import { config } from "../config/env";
-
-
+import { runTenantRegistration } from "./tenantRegistrationService";
 
 export const findUserByEmail = async (email: string) => {
   try {
@@ -78,7 +77,6 @@ export const createUser = async (
       .returning();
     return fallbackUser;
   }
-
 };
 
 export const authenticateUser = async (email: string, password: string) => {
@@ -134,6 +132,7 @@ export const updateUser = async (id: number, data: UpdateUserInput) => {
     }
   }
 
+  const oldUser = await findUserById(id);
   const updatePayload: Record<string, unknown> = { ...data };
 
   if (data.password) {
@@ -169,7 +168,62 @@ export const updateUser = async (id: number, data: UpdateUserInput) => {
       updatedAt: users.updatedAt,
     });
 
+  // Trigger ERP Webhook or Tenant Registration if plan or domain is updated
+  if ((data.planType || data.domain) && user.domain && user.planType) {
+    triggerERPWebhook(user.domain, user.planType).catch((err) =>
+      console.error("Failed to trigger ERP webhook:", err),
+    );
+  }
+
+  // Handle Domain or Database URL update
+  if ((data.domain || data.databaseUrl) && oldUser) {
+    const domainChanged = data.domain && data.domain !== oldUser.domain;
+    const dbUrlChanged = data.databaseUrl && data.databaseUrl !== oldUser.databaseUrl;
+
+    if (domainChanged || dbUrlChanged) {
+      const tenantId = user.domain?.split(".")[0];
+      if (tenantId && user.databaseUrl) {
+        runTenantRegistration(tenantId, user.databaseUrl).catch((err) =>
+          console.error(`Failed to trigger background registration for ${tenantId}:`, err)
+        );
+      }
+    }
+  }
+
   return user;
+};
+
+const triggerERPWebhook = async (subdomain: string, planType: string) => {
+  if (!config.erpApiUrl || !config.webhookSecret) {
+    console.warn("ERP Webhook skipped: Missing configuration");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${config.erpApiUrl}/webhooks/subscription/update`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          secret: config.webhookSecret,
+        },
+        body: JSON.stringify({ subdomain, planType }),
+      },
+    );
+
+    if (!response.ok) {
+      console.error(`ERP Webhook failed with status: ${response.status}`);
+      const text = await response.text();
+      console.error("Response:", text);
+    } else {
+      console.log(
+        `ERP Webhook success: Updated plan for ${subdomain} to ${planType}`,
+      );
+    }
+  } catch (error) {
+    console.error("Error triggering ERP webhook:", error);
+  }
 };
 
 export const deleteUser = async (id: number) => {
