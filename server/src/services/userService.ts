@@ -1,4 +1,4 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { db } from "../db";
 import { NewUser, users, type User } from "../db/schema";
 import { hashPassword, verifyPassword } from "../utils/password";
@@ -115,9 +115,29 @@ export const createUser = async (
     const message = error instanceof Error ? error.message.toLowerCase() : "";
     const isLegacyAccountStatusError =
       message.includes("account_status") && message.includes("pending_payment");
+    const isMissingPaymentColumnError =
+      message.includes("payment_base_amount") ||
+      message.includes("payment_discount_amount") ||
+      message.includes("payment_gst_amount") ||
+      message.includes("payment_final_amount");
 
-    if (!isLegacyAccountStatusError) {
+    if (!isLegacyAccountStatusError && !isMissingPaymentColumnError) {
       throw error;
+    }
+
+    if (isMissingPaymentColumnError) {
+      await db.execute(sql`
+        insert into "users"
+          ("email", "name", "password", "mobile", "company_name", "company_address", "role", "is_active")
+        values
+          (${input.email}, ${input.name}, ${password}, ${input.mobile ?? null}, ${input.companyName ?? null}, ${input.companyAddress ?? null}, ${input.role ?? "user"}, ${input.isActive ?? true})
+      `);
+
+      const inserted = await findUserByEmail(input.email);
+      if (!inserted) {
+        throw new Error("Registration failed. Please try again.");
+      }
+      return inserted;
     }
 
     const { accountStatus, ...fallbackInput } = input as NewUser;

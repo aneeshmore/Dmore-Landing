@@ -113,8 +113,25 @@ const createUser = async (input) => {
     catch (error) {
         const message = error instanceof Error ? error.message.toLowerCase() : "";
         const isLegacyAccountStatusError = message.includes("account_status") && message.includes("pending_payment");
-        if (!isLegacyAccountStatusError) {
+        const isMissingPaymentColumnError = message.includes("payment_base_amount") ||
+            message.includes("payment_discount_amount") ||
+            message.includes("payment_gst_amount") ||
+            message.includes("payment_final_amount");
+        if (!isLegacyAccountStatusError && !isMissingPaymentColumnError) {
             throw error;
+        }
+        if (isMissingPaymentColumnError) {
+            await db_1.db.execute((0, drizzle_orm_1.sql) `
+        insert into "users"
+          ("email", "name", "password", "mobile", "company_name", "company_address", "role", "is_active")
+        values
+          (${input.email}, ${input.name}, ${password}, ${input.mobile ?? null}, ${input.companyName ?? null}, ${input.companyAddress ?? null}, ${input.role ?? "user"}, ${input.isActive ?? true})
+      `);
+            const inserted = await (0, exports.findUserByEmail)(input.email);
+            if (!inserted) {
+                throw new Error("Registration failed. Please try again.");
+            }
+            return inserted;
         }
         const { accountStatus, ...fallbackInput } = input;
         const [fallbackUser] = await db_1.db
