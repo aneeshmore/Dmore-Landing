@@ -1,6 +1,7 @@
 import {
   boolean,
   integer,
+  numeric,
   pgEnum,
   pgTable,
   serial,
@@ -36,6 +37,7 @@ export const users = pgTable("users", {
   isActive: boolean("is_active").notNull().default(true),
   // New subscription fields
   domain: text("domain"),
+  databaseUrl: text("database_url"),
   numberOfUsers: integer("number_of_users").default(1),
   planType: planTypeEnum("plan_type"),
 
@@ -45,6 +47,23 @@ export const users = pgTable("users", {
   accountStatus: accountStatusEnum("account_status")
     .default("pending_payment")
     .notNull(),
+
+  paymentBaseAmount: numeric("payment_base_amount", {
+    precision: 12,
+    scale: 2,
+  }),
+  paymentDiscountAmount: numeric("payment_discount_amount", {
+    precision: 12,
+    scale: 2,
+  }),
+  paymentGstAmount: numeric("payment_gst_amount", {
+    precision: 12,
+    scale: 2,
+  }),
+  paymentFinalAmount: numeric("payment_final_amount", {
+    precision: 12,
+    scale: 2,
+  }),
 
   renewalDate: timestamp("renewal_date", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),

@@ -17,6 +17,7 @@ const userSchema = zod_1.z.object({
     companyName: zod_1.z.string().optional(),
     companyAddress: zod_1.z.string().optional(),
     domain: zod_1.z.string().optional(),
+    databaseUrl: zod_1.z.string().optional(),
     numberOfUsers: zod_1.z.number().int().positive().optional(),
     planType: zod_1.z.enum(["basic", "pro"]).optional(),
     subscriptionDuration: zod_1.z
@@ -25,7 +26,7 @@ const userSchema = zod_1.z.object({
     accountStatus: zod_1.z
         .enum(["pending_payment", "pending_approval", "active", "disabled"])
         .optional(),
-    renewalDate: zod_1.z.string().datetime().optional(),
+    renewalDate: zod_1.z.string().datetime().nullable().optional(),
 });
 // For updates, all fields optional
 const updateSchema = userSchema.partial();
@@ -95,6 +96,9 @@ router.put("/:id", async (req, res) => {
         }
         if (body.renewalDate) {
             body.renewalDate = new Date(body.renewalDate);
+        }
+        else if (body.renewalDate === null) {
+            body.renewalDate = null;
         }
         const user = await (0, userService_1.updateUser)(id, body);
         return res.json({ user: user ? sanitizeUser(user) : null });

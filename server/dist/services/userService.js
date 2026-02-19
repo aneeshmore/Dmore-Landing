@@ -5,11 +5,55 @@ const drizzle_orm_1 = require("drizzle-orm");
 const db_1 = require("../db");
 const schema_1 = require("../db/schema");
 const password_1 = require("../utils/password");
+const env_1 = require("../config/env");
+const tenantRegistrationService_1 = require("./tenantRegistrationService");
+const authSafeUserSelection = {
+    id: schema_1.users.id,
+    email: schema_1.users.email,
+    name: schema_1.users.name,
+    password: schema_1.users.password,
+    mobile: schema_1.users.mobile,
+    companyName: schema_1.users.companyName,
+    companyAddress: schema_1.users.companyAddress,
+    role: schema_1.users.role,
+    isActive: schema_1.users.isActive,
+    domain: schema_1.users.domain,
+    databaseUrl: schema_1.users.databaseUrl,
+    numberOfUsers: schema_1.users.numberOfUsers,
+    planType: schema_1.users.planType,
+    subscriptionDuration: schema_1.users.subscriptionDuration,
+    accountStatus: schema_1.users.accountStatus,
+    renewalDate: schema_1.users.renewalDate,
+    createdAt: schema_1.users.createdAt,
+    updatedAt: schema_1.users.updatedAt,
+};
+const listUserSelection = {
+    id: schema_1.users.id,
+    email: schema_1.users.email,
+    name: schema_1.users.name,
+    mobile: schema_1.users.mobile,
+    companyName: schema_1.users.companyName,
+    companyAddress: schema_1.users.companyAddress,
+    role: schema_1.users.role,
+    isActive: schema_1.users.isActive,
+    domain: schema_1.users.domain,
+    databaseUrl: schema_1.users.databaseUrl,
+    numberOfUsers: schema_1.users.numberOfUsers,
+    planType: schema_1.users.planType,
+    subscriptionDuration: schema_1.users.subscriptionDuration,
+    accountStatus: schema_1.users.accountStatus,
+    renewalDate: schema_1.users.renewalDate,
+    createdAt: schema_1.users.createdAt,
+    updatedAt: schema_1.users.updatedAt,
+};
 const findUserByEmail = async (email) => {
     try {
-        return await db_1.db.query.users.findFirst({
-            where: (0, drizzle_orm_1.eq)(schema_1.users.email, email),
-        });
+        const [user] = await db_1.db
+            .select(authSafeUserSelection)
+            .from(schema_1.users)
+            .where((0, drizzle_orm_1.eq)(schema_1.users.email, email))
+            .limit(1);
+        return user ?? null;
     }
     catch (error) {
         console.error("Database query failed:", error);
@@ -19,9 +63,12 @@ const findUserByEmail = async (email) => {
 exports.findUserByEmail = findUserByEmail;
 const findUserByMobile = async (mobile) => {
     try {
-        return await db_1.db.query.users.findFirst({
-            where: (0, drizzle_orm_1.eq)(schema_1.users.mobile, mobile),
-        });
+        const [user] = await db_1.db
+            .select(authSafeUserSelection)
+            .from(schema_1.users)
+            .where((0, drizzle_orm_1.eq)(schema_1.users.mobile, mobile))
+            .limit(1);
+        return user ?? null;
     }
     catch (error) {
         console.error("Database query failed:", error);
@@ -31,9 +78,12 @@ const findUserByMobile = async (mobile) => {
 exports.findUserByMobile = findUserByMobile;
 const findUserById = async (id) => {
     try {
-        return await db_1.db.query.users.findFirst({
-            where: (0, drizzle_orm_1.eq)(schema_1.users.id, id),
-        });
+        const [user] = await db_1.db
+            .select(authSafeUserSelection)
+            .from(schema_1.users)
+            .where((0, drizzle_orm_1.eq)(schema_1.users.id, id))
+            .limit(1);
+        return user ?? null;
     }
     catch (error) {
         console.error("Database query failed:", error);
@@ -57,7 +107,7 @@ const createUser = async (input) => {
         const [user] = await db_1.db
             .insert(schema_1.users)
             .values({ ...input, password })
-            .returning();
+            .returning(authSafeUserSelection);
         return user;
     }
     catch (error) {
@@ -70,7 +120,7 @@ const createUser = async (input) => {
         const [fallbackUser] = await db_1.db
             .insert(schema_1.users)
             .values({ ...fallbackInput, password })
-            .returning();
+            .returning(authSafeUserSelection);
         return fallbackUser;
     }
 };
@@ -87,11 +137,7 @@ const authenticateUser = async (email, password) => {
 exports.authenticateUser = authenticateUser;
 const listUsers = async () => {
     try {
-        return await db_1.db.query.users.findMany({
-            columns: {
-                password: false,
-            },
-        });
+        return await db_1.db.select(listUserSelection).from(schema_1.users);
     }
     catch (error) {
         console.error("Could not fetch users from database:", error);
@@ -107,6 +153,7 @@ const updateUser = async (id, data) => {
             throw new Error("Email already in use");
         }
     }
+    const oldUser = await (0, exports.findUserById)(id);
     const updatePayload = { ...data };
     if (data.password) {
         updatePayload.password = await (0, password_1.hashPassword)(data.password);
@@ -119,27 +166,52 @@ const updateUser = async (id, data) => {
         .update(schema_1.users)
         .set(updatePayload)
         .where((0, drizzle_orm_1.eq)(schema_1.users.id, id))
-        .returning({
-        id: schema_1.users.id,
-        name: schema_1.users.name,
-        email: schema_1.users.email,
-        isActive: schema_1.users.isActive,
-        mobile: schema_1.users.mobile,
-        companyName: schema_1.users.companyName,
-        companyAddress: schema_1.users.companyAddress,
-        role: schema_1.users.role,
-        domain: schema_1.users.domain,
-        numberOfUsers: schema_1.users.numberOfUsers,
-        planType: schema_1.users.planType,
-        subscriptionDuration: schema_1.users.subscriptionDuration,
-        accountStatus: schema_1.users.accountStatus,
-        renewalDate: schema_1.users.renewalDate,
-        createdAt: schema_1.users.createdAt,
-        updatedAt: schema_1.users.updatedAt,
-    });
+        .returning(listUserSelection);
+    // Trigger ERP Webhook or Tenant Registration if plan or domain is updated
+    if ((data.planType || data.domain) && user.domain && user.planType) {
+        triggerERPWebhook(user.domain, user.planType).catch((err) => console.error("Failed to trigger ERP webhook:", err));
+    }
+    // Handle Domain or Database URL update
+    if ((data.domain || data.databaseUrl) && oldUser) {
+        const domainChanged = data.domain && data.domain !== oldUser.domain;
+        const dbUrlChanged = data.databaseUrl && data.databaseUrl !== oldUser.databaseUrl;
+        if (domainChanged || dbUrlChanged) {
+            const tenantId = user.domain?.split(".")[0];
+            if (tenantId && user.databaseUrl) {
+                (0, tenantRegistrationService_1.runTenantRegistration)(tenantId, user.databaseUrl).catch((err) => console.error(`Failed to trigger background registration for ${tenantId}:`, err));
+            }
+        }
+    }
     return user;
 };
 exports.updateUser = updateUser;
+const triggerERPWebhook = async (subdomain, planType) => {
+    if (!env_1.config.erpApiUrl || !env_1.config.webhookSecret) {
+        console.warn("ERP Webhook skipped: Missing configuration");
+        return;
+    }
+    try {
+        const response = await fetch(`${env_1.config.erpApiUrl}/webhooks/subscription/update`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                secret: env_1.config.webhookSecret,
+            },
+            body: JSON.stringify({ subdomain, planType }),
+        });
+        if (!response.ok) {
+            console.error(`ERP Webhook failed with status: ${response.status}`);
+            const text = await response.text();
+            console.error("Response:", text);
+        }
+        else {
+            console.log(`ERP Webhook success: Updated plan for ${subdomain} to ${planType}`);
+        }
+    }
+    catch (error) {
+        console.error("Error triggering ERP webhook:", error);
+    }
+};
 const deleteUser = async (id) => {
     return db_1.db.delete(schema_1.users).where((0, drizzle_orm_1.eq)(schema_1.users.id, id));
 };

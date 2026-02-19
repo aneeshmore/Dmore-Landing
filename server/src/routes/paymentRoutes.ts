@@ -56,8 +56,41 @@ const pricing = {
 
 type PlanType = keyof typeof pricing;
 type PlanPeriod = keyof (typeof pricing)["basic"];
-const COUPON_CODE = "colorsocity";
+const COUPON_CODE = "coloursociety";
 const COUPON_DISCOUNT = 2000;
+const GST_RATE = 0.18;
+
+const roundToTwo = (value: number) =>
+  Math.round((value + Number.EPSILON) * 100) / 100;
+
+const isMissingPaymentColumnError = (error: unknown) => {
+  const message =
+    error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  return (
+    message.includes("payment_base_amount") ||
+    message.includes("payment_discount_amount") ||
+    message.includes("payment_gst_amount") ||
+    message.includes("payment_final_amount")
+  );
+};
+
+const calculatePaymentBreakdown = (
+  baseAmount: number,
+  applyCoupon: boolean,
+) => {
+  const discountAmount = applyCoupon ? COUPON_DISCOUNT : 0;
+  const discountedAmount = Math.max(baseAmount - discountAmount, 0);
+  const gstAmount = roundToTwo(discountedAmount * GST_RATE);
+  const finalAmount = roundToTwo(discountedAmount + gstAmount);
+
+  return {
+    baseAmount,
+    discountAmount,
+    gstAmount,
+    finalAmount,
+    amountInPaise: Math.round(finalAmount * 100),
+  };
+};
 
 const toPaymentStatus = (user: {
   accountStatus?: string | null;
@@ -83,6 +116,7 @@ const createOrderSchema = z.object({
   planType: z.enum(["basic", "pro"]),
   period: z.enum(["monthly", "6months", "1year"]),
   couponCode: z.string().optional(),
+  clientFinalAmount: z.number().finite().nonnegative().optional(),
 });
 
 /* ==========================
@@ -101,7 +135,8 @@ router.post(
         });
       }
 
-      const { planType, period, couponCode } = createOrderSchema.parse(req.body);
+      const { planType, period, couponCode, clientFinalAmount } =
+        createOrderSchema.parse(req.body);
       const requestingUser = await findUserById(req.user!.userId);
 
       if (!requestingUser) {
@@ -131,8 +166,22 @@ router.post(
       const normalizedCoupon = couponCode?.trim().toLowerCase();
       const isCouponApplicable =
         period === "1year" && normalizedCoupon === COUPON_CODE;
-      const finalAmount = isCouponApplicable ? amount - COUPON_DISCOUNT : amount;
-      const amountInPaise = finalAmount * 100;
+      const {
+        baseAmount,
+        discountAmount,
+        gstAmount,
+        finalAmount,
+        amountInPaise,
+      } = calculatePaymentBreakdown(amount, isCouponApplicable);
+
+      if (
+        typeof clientFinalAmount === "number" &&
+        roundToTwo(clientFinalAmount) !== roundToTwo(finalAmount)
+      ) {
+        return res.status(400).json({
+          message: "Final amount mismatch. Please refresh and try again.",
+        });
+      }
 
       const order = await razorpay.orders.create({
         amount: amountInPaise,
@@ -143,6 +192,10 @@ router.post(
           period,
           userId: String(req.user!.userId),
           couponApplied: isCouponApplicable ? "true" : "false",
+          baseAmount: baseAmount.toFixed(2),
+          discountAmount: discountAmount.toFixed(2),
+          gstAmount: gstAmount.toFixed(2),
+          finalAmount: finalAmount.toFixed(2),
         },
       });
 
@@ -151,6 +204,10 @@ router.post(
         amount: order.amount,
         currency: order.currency,
         keyId: config.razorpayKeyId,
+        baseAmount,
+        discountAmount,
+        gstAmount,
+        finalAmount,
       });
     } catch (error: any) {
       if (error instanceof ZodError) {
@@ -248,6 +305,10 @@ router.post(
       const period = notes.period as PlanPeriod;
       const couponApplied = notes.couponApplied === "true";
       const userId = Number(notes.userId);
+      const notedBaseAmount = Number(notes.baseAmount);
+      const notedDiscountAmount = Number(notes.discountAmount);
+      const notedGstAmount = Number(notes.gstAmount);
+      const notedFinalAmount = Number(notes.finalAmount);
 
       if (!planType || !period || !userId) {
         return res.status(400).json({
@@ -257,12 +318,45 @@ router.post(
 
       const baseAmount = pricing[planType][period];
       const canApplyCoupon = period === "1year";
-      const expectedAmountInPaise =
-        (couponApplied && canApplyCoupon ? baseAmount - COUPON_DISCOUNT : baseAmount) *
-        100;
+      const {
+        discountAmount,
+        gstAmount,
+        finalAmount,
+        amountInPaise: expectedAmountInPaise,
+      } = calculatePaymentBreakdown(
+        baseAmount,
+        couponApplied && canApplyCoupon,
+      );
+
       if (order.amount !== expectedAmountInPaise) {
         return res.status(400).json({
           message: "Order amount mismatch for selected plan",
+        });
+      }
+
+      if (
+        Number.isFinite(notedBaseAmount) &&
+        Number.isFinite(notedDiscountAmount) &&
+        Number.isFinite(notedGstAmount) &&
+        Number.isFinite(notedFinalAmount)
+      ) {
+        if (
+          roundToTwo(notedBaseAmount) !== roundToTwo(baseAmount) ||
+          roundToTwo(notedDiscountAmount) !== roundToTwo(discountAmount) ||
+          roundToTwo(notedGstAmount) !== roundToTwo(gstAmount) ||
+          roundToTwo(notedFinalAmount) !== roundToTwo(finalAmount)
+        ) {
+          return res.status(400).json({
+            message: "Stored payment breakdown mismatch",
+          });
+        }
+      }
+
+      const payment = await razorpay.payments.fetch(razorpayPaymentId);
+
+      if (payment.amount !== expectedAmountInPaise) {
+        return res.status(400).json({
+          message: "Paid amount mismatch for selected plan",
         });
       }
 
@@ -295,19 +389,46 @@ router.post(
          4️⃣ UPDATE USER
       ========================== */
 
-      await db
-        .update(users)
-        .set({
-          planType,
-          subscriptionDuration: period,
-          renewalDate,
-          accountStatus: "active",
-        })
-        .where(eq(users.id, userId));
+      try {
+        await db
+          .update(users)
+          .set({
+            planType,
+            subscriptionDuration: period,
+            renewalDate,
+            accountStatus: "active",
+            paymentBaseAmount: baseAmount.toFixed(2),
+            paymentDiscountAmount: discountAmount.toFixed(2),
+            paymentGstAmount: gstAmount.toFixed(2),
+            paymentFinalAmount: finalAmount.toFixed(2),
+          })
+          .where(eq(users.id, userId));
+      } catch (error) {
+        if (!isMissingPaymentColumnError(error)) {
+          throw error;
+        }
+
+        await db
+          .update(users)
+          .set({
+            planType,
+            subscriptionDuration: period,
+            renewalDate,
+            accountStatus: "active",
+          })
+          .where(eq(users.id, userId));
+      }
 
       return res.json({
         success: true,
         message: "Payment verified successfully",
+        paymentDetails: {
+          baseAmount,
+          discountAmount,
+          gstAmount,
+          finalAmount,
+          finalPaidAmount: roundToTwo(payment.amount / 100),
+        },
       });
     } catch (error: any) {
       return res.status(400).json({
@@ -318,4 +439,3 @@ router.post(
 );
 
 export default router;
-

@@ -39,14 +39,38 @@ console.log("🔥 PAYMENT ROUTES LOADED");
 const pricing = {
     basic: {
         monthly: 1499,
-        "6months": 7499,
-        "1year": 11999,
+        "6months": 7999,
+        "1year": 14999,
     },
     pro: {
-        monthly: 2999,
-        "6months": 16499,
-        "1year": 29999,
+        monthly: 4999,
+        "6months": 26999,
+        "1year": 49999,
     },
+};
+const COUPON_CODE = "coloursociety";
+const COUPON_DISCOUNT = 2000;
+const GST_RATE = 0.18;
+const roundToTwo = (value) => Math.round((value + Number.EPSILON) * 100) / 100;
+const isMissingPaymentColumnError = (error) => {
+    const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+    return (message.includes("payment_base_amount") ||
+        message.includes("payment_discount_amount") ||
+        message.includes("payment_gst_amount") ||
+        message.includes("payment_final_amount"));
+};
+const calculatePaymentBreakdown = (baseAmount, applyCoupon) => {
+    const discountAmount = applyCoupon ? COUPON_DISCOUNT : 0;
+    const discountedAmount = Math.max(baseAmount - discountAmount, 0);
+    const gstAmount = roundToTwo(discountedAmount * GST_RATE);
+    const finalAmount = roundToTwo(discountedAmount + gstAmount);
+    return {
+        baseAmount,
+        discountAmount,
+        gstAmount,
+        finalAmount,
+        amountInPaise: Math.round(finalAmount * 100),
+    };
 };
 const toPaymentStatus = (user) => {
     if (user.accountStatus === "disabled")
@@ -67,6 +91,8 @@ const toPaymentStatus = (user) => {
 const createOrderSchema = zod_1.z.object({
     planType: zod_1.z.enum(["basic", "pro"]),
     period: zod_1.z.enum(["monthly", "6months", "1year"]),
+    couponCode: zod_1.z.string().optional(),
+    clientFinalAmount: zod_1.z.number().finite().nonnegative().optional(),
 });
 /* ==========================
    CREATE ORDER
@@ -78,7 +104,7 @@ router.post("/create-order", auth_1.authenticate, async (req, res) => {
                 message: "Razorpay keys are not configured. Update RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in server/.env.",
             });
         }
-        const { planType, period } = createOrderSchema.parse(req.body);
+        const { planType, period, couponCode, clientFinalAmount } = createOrderSchema.parse(req.body);
         const requestingUser = await (0, userService_1.findUserById)(req.user.userId);
         if (!requestingUser) {
             return res.status(404).json({ message: "User not found" });
@@ -98,7 +124,15 @@ router.post("/create-order", auth_1.authenticate, async (req, res) => {
                 message: "Invalid pricing configuration",
             });
         }
-        const amountInPaise = amount * 100;
+        const normalizedCoupon = couponCode?.trim().toLowerCase();
+        const isCouponApplicable = period === "1year" && normalizedCoupon === COUPON_CODE;
+        const { baseAmount, discountAmount, gstAmount, finalAmount, amountInPaise, } = calculatePaymentBreakdown(amount, isCouponApplicable);
+        if (typeof clientFinalAmount === "number" &&
+            roundToTwo(clientFinalAmount) !== roundToTwo(finalAmount)) {
+            return res.status(400).json({
+                message: "Final amount mismatch. Please refresh and try again.",
+            });
+        }
         const order = await razorpay.orders.create({
             amount: amountInPaise,
             currency: "INR",
@@ -107,6 +141,11 @@ router.post("/create-order", auth_1.authenticate, async (req, res) => {
                 planType,
                 period,
                 userId: String(req.user.userId),
+                couponApplied: isCouponApplicable ? "true" : "false",
+                baseAmount: baseAmount.toFixed(2),
+                discountAmount: discountAmount.toFixed(2),
+                gstAmount: gstAmount.toFixed(2),
+                finalAmount: finalAmount.toFixed(2),
             },
         });
         return res.json({
@@ -114,6 +153,10 @@ router.post("/create-order", auth_1.authenticate, async (req, res) => {
             amount: order.amount,
             currency: order.currency,
             keyId: env_1.config.razorpayKeyId,
+            baseAmount,
+            discountAmount,
+            gstAmount,
+            finalAmount,
         });
     }
     catch (error) {
@@ -184,10 +227,42 @@ router.post("/verify-payment", auth_1.authenticate, async (req, res) => {
         }
         const planType = notes.planType;
         const period = notes.period;
+        const couponApplied = notes.couponApplied === "true";
         const userId = Number(notes.userId);
+        const notedBaseAmount = Number(notes.baseAmount);
+        const notedDiscountAmount = Number(notes.discountAmount);
+        const notedGstAmount = Number(notes.gstAmount);
+        const notedFinalAmount = Number(notes.finalAmount);
         if (!planType || !period || !userId) {
             return res.status(400).json({
                 message: "Invalid order metadata",
+            });
+        }
+        const baseAmount = pricing[planType][period];
+        const canApplyCoupon = period === "1year";
+        const { discountAmount, gstAmount, finalAmount, amountInPaise: expectedAmountInPaise, } = calculatePaymentBreakdown(baseAmount, couponApplied && canApplyCoupon);
+        if (order.amount !== expectedAmountInPaise) {
+            return res.status(400).json({
+                message: "Order amount mismatch for selected plan",
+            });
+        }
+        if (Number.isFinite(notedBaseAmount) &&
+            Number.isFinite(notedDiscountAmount) &&
+            Number.isFinite(notedGstAmount) &&
+            Number.isFinite(notedFinalAmount)) {
+            if (roundToTwo(notedBaseAmount) !== roundToTwo(baseAmount) ||
+                roundToTwo(notedDiscountAmount) !== roundToTwo(discountAmount) ||
+                roundToTwo(notedGstAmount) !== roundToTwo(gstAmount) ||
+                roundToTwo(notedFinalAmount) !== roundToTwo(finalAmount)) {
+                return res.status(400).json({
+                    message: "Stored payment breakdown mismatch",
+                });
+            }
+        }
+        const payment = await razorpay.payments.fetch(razorpayPaymentId);
+        if (payment.amount !== expectedAmountInPaise) {
+            return res.status(400).json({
+                message: "Paid amount mismatch for selected plan",
             });
         }
         if (req.user?.userId !== userId) {
@@ -214,18 +289,45 @@ router.post("/verify-payment", auth_1.authenticate, async (req, res) => {
         /* ==========================
            4️⃣ UPDATE USER
         ========================== */
-        await db_1.db
-            .update(schema_1.users)
-            .set({
-            planType,
-            subscriptionDuration: period,
-            renewalDate,
-            accountStatus: "active",
-        })
-            .where((0, drizzle_orm_1.eq)(schema_1.users.id, userId));
+        try {
+            await db_1.db
+                .update(schema_1.users)
+                .set({
+                planType,
+                subscriptionDuration: period,
+                renewalDate,
+                accountStatus: "active",
+                paymentBaseAmount: baseAmount.toFixed(2),
+                paymentDiscountAmount: discountAmount.toFixed(2),
+                paymentGstAmount: gstAmount.toFixed(2),
+                paymentFinalAmount: finalAmount.toFixed(2),
+            })
+                .where((0, drizzle_orm_1.eq)(schema_1.users.id, userId));
+        }
+        catch (error) {
+            if (!isMissingPaymentColumnError(error)) {
+                throw error;
+            }
+            await db_1.db
+                .update(schema_1.users)
+                .set({
+                planType,
+                subscriptionDuration: period,
+                renewalDate,
+                accountStatus: "active",
+            })
+                .where((0, drizzle_orm_1.eq)(schema_1.users.id, userId));
+        }
         return res.json({
             success: true,
             message: "Payment verified successfully",
+            paymentDetails: {
+                baseAmount,
+                discountAmount,
+                gstAmount,
+                finalAmount,
+                finalPaidAmount: roundToTwo(payment.amount / 100),
+            },
         });
     }
     catch (error) {

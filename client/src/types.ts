@@ -22,9 +22,15 @@ export interface User {
   companyName?: string;
   companyAddress?: string;
   domain?: string;
+  databaseUrl?: string;
   numberOfUsers?: number;
   planType?: PlanType;
   subscriptionDuration?: SubscriptionDuration;
   accountStatus: AccountStatus;
+  paymentBaseAmount?: string | number | null;
+  paymentDiscountAmount?: string | number | null;
+  paymentGstAmount?: string | number | null;
+  paymentFinalAmount?: string | number | null;
+  paymentStatus?: "pending" | "completed";
   renewalDate?: string;
 }

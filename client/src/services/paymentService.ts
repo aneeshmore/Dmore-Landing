@@ -6,6 +6,10 @@ export interface CreateOrderResponse {
   amount: number;
   currency: string;
   keyId: string;
+  baseAmount: number;
+  discountAmount: number;
+  gstAmount: number;
+  finalAmount: number;
 }
 
 export interface VerifyPaymentResponse {
@@ -21,6 +25,7 @@ export interface CreateOrderParams {
   planType: PlanType;
   period: SubscriptionDuration;
   couponCode?: string;
+  clientFinalAmount?: number;
 }
 
 export const paymentService = {

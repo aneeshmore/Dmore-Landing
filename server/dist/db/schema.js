@@ -27,12 +27,29 @@ exports.users = (0, pg_core_1.pgTable)("users", {
     isActive: (0, pg_core_1.boolean)("is_active").notNull().default(true),
     // New subscription fields
     domain: (0, pg_core_1.text)("domain"),
+    databaseUrl: (0, pg_core_1.text)("database_url"),
     numberOfUsers: (0, pg_core_1.integer)("number_of_users").default(1),
     planType: (0, exports.planTypeEnum)("plan_type"),
     subscriptionDuration: (0, exports.subscriptionDurationEnum)("subscription_duration").default("monthly"),
     accountStatus: (0, exports.accountStatusEnum)("account_status")
         .default("pending_payment")
         .notNull(),
+    paymentBaseAmount: (0, pg_core_1.numeric)("payment_base_amount", {
+        precision: 12,
+        scale: 2,
+    }),
+    paymentDiscountAmount: (0, pg_core_1.numeric)("payment_discount_amount", {
+        precision: 12,
+        scale: 2,
+    }),
+    paymentGstAmount: (0, pg_core_1.numeric)("payment_gst_amount", {
+        precision: 12,
+        scale: 2,
+    }),
+    paymentFinalAmount: (0, pg_core_1.numeric)("payment_final_amount", {
+        precision: 12,
+        scale: 2,
+    }),
     renewalDate: (0, pg_core_1.timestamp)("renewal_date", { withTimezone: true }),
     createdAt: (0, pg_core_1.timestamp)("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: (0, pg_core_1.timestamp)("updated_at", { withTimezone: true })

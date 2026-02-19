@@ -7,12 +7,41 @@ import "./AdminDashboard.css";
 
 interface EditFormState {
   name: string;
+  email: string;
   mobile: string;
   companyName: string;
   companyAddress: string;
   domain: string;
+  databaseUrl: string;
   numberOfUsers: string;
+  planType: string;
+  subscriptionDuration: string;
+  paymentStatus: "pending" | "completed";
 }
+
+const PLAN_LABELS = {
+  basic: "Basic",
+  pro: "Pro",
+} as const;
+
+const DURATION_LABELS = {
+  monthly: "Monthly",
+  "6months": "6 Months",
+  "1year": "Yearly",
+} as const;
+
+const PLAN_PRICING = {
+  basic: {
+    monthly: 1499,
+    "6months": 7999,
+    "1year": 14999,
+  },
+  pro: {
+    monthly: 4999,
+    "6months": 26999,
+    "1year": 49999,
+  },
+} as const;
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -25,18 +54,41 @@ const AdminDashboard = () => {
   const [editLoading, setEditLoading] = useState(false);
   const [editForm, setEditForm] = useState<EditFormState>({
     name: "",
+    email: "",
     mobile: "",
     companyName: "",
     companyAddress: "",
     domain: "",
+    databaseUrl: "",
     numberOfUsers: "1",
+    planType: "basic",
+    subscriptionDuration: "monthly",
+    paymentStatus: "pending",
+  });
+
+  const [isAddTenantModalOpen, setIsAddTenantModalOpen] = useState(false);
+  const [addTenantLoading, setAddTenantLoading] = useState(false);
+  const [addTenantForm, setAddTenantForm] = useState({
+    tenantId: "",
+    databaseUrl: "",
+    name: "",
+    email: "",
+    password: "",
+    mobile: "",
+    companyName: "",
+    companyAddress: "",
+    domain: "",
+    planType: "basic",
+    subscriptionDuration: "monthly",
+    numberOfUsers: "1",
+    paymentStatus: "pending"
   });
 
   const fetchUsers = async () => {
     setLoading(true);
     setError("");
     try {
-      const { data } = await api.get("/users");
+      const { data } = await api.get("/admin/registered-users");
       setUsers(data.users || []);
     } catch {
       setError("Unable to load users.");
@@ -76,11 +128,16 @@ const AdminDashboard = () => {
     setEditUserId(entry.id);
     setEditForm({
       name: entry.name || "",
+      email: entry.email || "",
       mobile: entry.mobile || "",
       companyName: entry.companyName || "",
       companyAddress: entry.companyAddress || "",
       domain: entry.domain || "",
+      databaseUrl: entry.databaseUrl || "",
       numberOfUsers: String(entry.numberOfUsers ?? 1),
+      planType: entry.planType || "basic",
+      subscriptionDuration: entry.subscriptionDuration || "monthly",
+      paymentStatus: entry.renewalDate ? "completed" : "pending",
     });
     setIsEditModalOpen(true);
   };
@@ -103,14 +160,38 @@ const AdminDashboard = () => {
 
     setEditLoading(true);
     try {
-      await api.put(`/users/${editUserId}`, {
+      const payload: any = {
         name: editForm.name,
+        email: editForm.email,
         mobile: editForm.mobile,
         companyName: editForm.companyName,
         companyAddress: editForm.companyAddress,
         domain: editForm.domain,
+        databaseUrl: editForm.databaseUrl,
         numberOfUsers,
-      });
+        planType: editForm.planType,
+        subscriptionDuration: editForm.subscriptionDuration,
+      };
+
+      if (editForm.paymentStatus === "completed") {
+        // If switching to completed or staying completed, ensure we have a validity date.
+        // If it was already completed (has renewalDate), we might want to keep it or extend it? 
+        // Simple logic: if setting to completed, set to now + duration.
+        // Or if we want to preserve existing date if it exists? 
+        // Let's stick to "Marking as Completed resets/sets the date" for manual admin action.
+        const now = new Date();
+        if (editForm.subscriptionDuration === "monthly") now.setMonth(now.getMonth() + 1);
+        else if (editForm.subscriptionDuration === "6months") now.setMonth(now.getMonth() + 6);
+        else if (editForm.subscriptionDuration === "1year") now.setFullYear(now.getFullYear() + 1);
+        payload.renewalDate = now.toISOString();
+        payload.accountStatus = "active";
+      } else {
+        // If setting to pending, clear the renewal date
+        payload.renewalDate = null;
+        payload.accountStatus = "pending_payment";
+      }
+
+      await api.put(`/users/${editUserId}`, payload);
       showToast("User details updated successfully", "success");
       closeEditModal();
       fetchUsers();
@@ -146,9 +227,75 @@ const AdminDashboard = () => {
   const activeUsersCount = users.filter(
     (entry) => entry.isActive !== false,
   ).length;
+
+  const handleAddTenant = async (e: FormEvent) => {
+    e.preventDefault();
+    setAddTenantLoading(true);
+    try {
+      const payload: any = { ...addTenantForm };
+
+      if (addTenantForm.paymentStatus === "completed") {
+        const now = new Date();
+        if (addTenantForm.subscriptionDuration === "monthly") now.setMonth(now.getMonth() + 1);
+        else if (addTenantForm.subscriptionDuration === "6months") now.setMonth(now.getMonth() + 6);
+        else if (addTenantForm.subscriptionDuration === "1year") now.setFullYear(now.getFullYear() + 1);
+        payload.renewalDate = now.toISOString();
+        payload.accountStatus = "active";
+      } else {
+        payload.renewalDate = null;
+        payload.accountStatus = "pending_payment";
+      }
+
+      const { data } = await api.post("/admin/add-tenant", payload);
+      showToast(data.message || "Tenant registered successfully", "success");
+      setIsAddTenantModalOpen(false);
+      setAddTenantForm({
+        tenantId: "",
+        databaseUrl: "",
+        name: "",
+        email: "",
+        password: "",
+        mobile: "",
+        companyName: "",
+        companyAddress: "",
+        domain: "",
+        planType: "basic",
+        subscriptionDuration: "monthly",
+        numberOfUsers: "1",
+        paymentStatus: "pending"
+      });
+    } catch (err: any) {
+      showToast(
+        err?.response?.data?.message || "Failed to register tenant.",
+        "error"
+      );
+    } finally {
+      setAddTenantLoading(false);
+    }
+  };
+
   const inactiveUsersCount = users.filter(
     (entry) => entry.isActive === false,
   ).length;
+
+  const toNumber = (value: unknown) => {
+    if (typeof value === "number") return Number.isFinite(value) ? value : null;
+    if (typeof value === "string") {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  };
+
+  const formatCurrency = (value: number | null) => {
+    if (value === null) return "—";
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  };
 
   const handleToggleUserStatus = async (entry: User) => {
     const nextStatus = entry.isActive === false ? true : false;
@@ -190,38 +337,40 @@ const AdminDashboard = () => {
       </div>
 
       <div className="admin-content">
-        <div className="admin-card admin-payment-status-card">
-          <div className="admin-card-header">
-            <h2>Payment Status</h2>
-          </div>
-          <div className="payment-status-grid">
-            <div className="payment-status-item pending">
-              <span className="payment-status-value">
-                {pendingPaymentCount}
-              </span>
-              <span className="payment-status-label">Pending</span>
+        <div className="status-cards-row">
+          <div className="admin-card admin-payment-status-card">
+            <div className="admin-card-header">
+              <h2>Payment Status</h2>
             </div>
-            <div className="payment-status-item completed">
-              <span className="payment-status-value">
-                {completedPaymentCount}
-              </span>
-              <span className="payment-status-label">Completed</span>
+            <div className="payment-status-grid">
+              <div className="payment-status-item pending">
+                <span className="payment-status-value">
+                  {pendingPaymentCount}
+                </span>
+                <span className="payment-status-label">Pending</span>
+              </div>
+              <div className="payment-status-item completed">
+                <span className="payment-status-value">
+                  {completedPaymentCount}
+                </span>
+                <span className="payment-status-label">Completed</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="admin-card admin-user-status-card">
-          <div className="admin-card-header">
-            <h2>User Status Management</h2>
-          </div>
-          <div className="payment-status-grid">
-            <div className="payment-status-item completed">
-              <span className="payment-status-value">{activeUsersCount}</span>
-              <span className="payment-status-label">Active Users</span>
+          <div className="admin-card admin-user-status-card">
+            <div className="admin-card-header">
+              <h2>User Status Management</h2>
             </div>
-            <div className="payment-status-item pending">
-              <span className="payment-status-value">{inactiveUsersCount}</span>
-              <span className="payment-status-label">Inactive Users</span>
+            <div className="payment-status-grid">
+              <div className="payment-status-item completed">
+                <span className="payment-status-value">{activeUsersCount}</span>
+                <span className="payment-status-label">Active Users</span>
+              </div>
+              <div className="payment-status-item pending">
+                <span className="payment-status-value">{inactiveUsersCount}</span>
+                <span className="payment-status-label">Inactive Users</span>
+              </div>
             </div>
           </div>
         </div>
@@ -231,6 +380,13 @@ const AdminDashboard = () => {
             <h2>Registered Users</h2>
 
             <div className="header-actions">
+              <button
+                className="btn-action btn-export"
+                onClick={() => setIsAddTenantModalOpen(true)}
+              >
+                + Add New Client
+              </button>
+
               <button
                 className="btn-action"
                 onClick={fetchUsers}
@@ -259,12 +415,14 @@ const AdminDashboard = () => {
                     <th>Mobile</th>
                     <th>Company</th>
                     <th>Domain</th>
+                    <th>Database URL</th>
                     <th>Users</th>
                     <th>Plan</th>
                     <th>Duration</th>
                     <th>Status</th>
                     <th>User Status</th>
                     <th>Payment Status</th>
+                    <th>Payment Details</th>
                     <th>Created</th>
                     <th>Actions</th>
                   </tr>
@@ -273,7 +431,7 @@ const AdminDashboard = () => {
                 <tbody>
                   {users.length === 0 && (
                     <tr>
-                      <td colSpan={12}>
+                      <td colSpan={14}>
                         <div className="empty-state">
                           <p>No users found.</p>
                         </div>
@@ -282,13 +440,40 @@ const AdminDashboard = () => {
                   )}
 
                   {users.map((entry) => {
-                    const hasVerifiedPayment = Boolean(entry.renewalDate);
-                    const planLabel = hasVerifiedPayment
-                      ? (entry.planType ?? "-")
+                    const hasVerifiedPayment =
+                      entry.paymentStatus === "completed" ||
+                      Boolean(entry.renewalDate);
+                    const planLabel = entry.planType
+                      ? PLAN_LABELS[entry.planType]
                       : "-";
-                    const durationLabel = hasVerifiedPayment
-                      ? (entry.subscriptionDuration ?? "-")
+                    const durationLabel = entry.subscriptionDuration
+                      ? DURATION_LABELS[entry.subscriptionDuration]
                       : "-";
+
+                    const fallbackBaseAmount =
+                      entry.planType && entry.subscriptionDuration
+                        ? PLAN_PRICING[entry.planType][entry.subscriptionDuration]
+                        : null;
+                    const baseAmount = hasVerifiedPayment
+                      ? (toNumber(entry.paymentBaseAmount) ?? fallbackBaseAmount)
+                      : null;
+                    const discountAmount = hasVerifiedPayment
+                      ? (toNumber(entry.paymentDiscountAmount) ?? 0)
+                      : null;
+                    const gstAmount = hasVerifiedPayment
+                      ? (toNumber(entry.paymentGstAmount) ??
+                        (baseAmount !== null && discountAmount !== null
+                          ? Number(((baseAmount - discountAmount) * 0.18).toFixed(2))
+                          : null))
+                      : null;
+                    const finalAmount = hasVerifiedPayment
+                      ? (toNumber(entry.paymentFinalAmount) ??
+                        (baseAmount !== null &&
+                        discountAmount !== null &&
+                        gstAmount !== null
+                          ? Number((baseAmount - discountAmount + gstAmount).toFixed(2))
+                          : null))
+                      : null;
 
                     return (
                       <tr
@@ -337,19 +522,28 @@ const AdminDashboard = () => {
                         </td>
 
                         <td>
+                          {entry.databaseUrl ? (
+                            <span className="domain-text" title={entry.databaseUrl}>
+                              {entry.databaseUrl.length > 30 ? entry.databaseUrl.substring(0, 30) + "..." : entry.databaseUrl}
+                            </span>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
+
+                        <td>
                           <span className="users-count">
                             {entry.numberOfUsers ?? 1}
                           </span>
                         </td>
 
                         <td>
-                          {hasVerifiedPayment && entry.planType ? (
+                          {entry.planType ? (
                             <span
-                              className={`plan-badge ${
-                                entry.planType === "pro"
-                                  ? "plan-pro"
-                                  : "plan-basic"
-                              }`}
+                              className={`plan-badge ${entry.planType === "pro"
+                                ? "plan-pro"
+                                : "plan-basic"
+                                }`}
                             >
                               {planLabel}
                             </span>
@@ -363,14 +557,19 @@ const AdminDashboard = () => {
                         </td>
 
                         <td>
+                          <span className={`toggle-label ${entry.accountStatus === "active" ? "active" : "disabled"}`}>
+                            {entry.accountStatus}
+                          </span>
+                        </td>
+
+                        <td>
                           <div className="user-status-cell">
                             <button
                               type="button"
                               role="switch"
                               aria-checked={entry.isActive !== false}
-                              className={`status-switch ${
-                                entry.isActive !== false ? "on" : "off"
-                              }`}
+                              className={`status-switch ${entry.isActive !== false ? "on" : "off"
+                                }`}
                               onClick={() => handleToggleUserStatus(entry)}
                             >
                               <span className="status-switch-thumb" />
@@ -382,34 +581,35 @@ const AdminDashboard = () => {
                         </td>
 
                         <td>
-                          <span
-                            className={`toggle-label ${
-                              entry.accountStatus === "active"
-                                ? "active"
-                                : "disabled"
-                            }`}
-                          >
-                            {entry.accountStatus}
+                          <span className={`payment-status-badge ${hasVerifiedPayment ? "completed" : "pending"}`}>
+                            {hasVerifiedPayment ? "Completed" : "Pending"}
                           </span>
                         </td>
 
                         <td>
-                          <span
-                            className={`payment-status-badge ${
-                              entry.renewalDate ? "completed" : "pending"
-                            }`}
-                          >
-                            {entry.renewalDate ? "Completed" : "Pending"}
-                          </span>
+                          <div className={`payment-details-cell ${hasVerifiedPayment ? "completed" : "pending"}`}>
+                            <div className="payment-details-row">
+                              <span>Base</span>
+                              <span>{formatCurrency(baseAmount)}</span>
+                            </div>
+                            <div className="payment-details-row">
+                              <span>Discount</span>
+                              <span>{formatCurrency(discountAmount)}</span>
+                            </div>
+                            <div className="payment-details-row">
+                              <span>GST (18%)</span>
+                              <span>{formatCurrency(gstAmount)}</span>
+                            </div>
+                            <div className="payment-details-row payment-details-final">
+                              <span>Final</span>
+                              <span>{formatCurrency(finalAmount)}</span>
+                            </div>
+                          </div>
                         </td>
 
                         <td>
                           <span className="date-text">
-                            {entry.createdAt
-                              ? new Date(
-                                  entry.createdAt as string,
-                                ).toLocaleDateString()
-                              : "-"}
+                            {entry.createdAt ? new Date(entry.createdAt as string).toLocaleDateString() : "-"}
                           </span>
                         </td>
 
@@ -445,91 +645,399 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {isEditModalOpen && (
-        <div className="admin-modal-backdrop">
-          <div className="admin-modal">
-            <h3>Edit User</h3>
-            <form className="admin-modal-form" onSubmit={handleEditSave}>
-              <input
-                type="text"
-                placeholder="Name"
-                value={editForm.name}
-                onChange={(e) =>
-                  setEditForm((prev) => ({ ...prev, name: e.target.value }))
-                }
-                required
-              />
-              <input
-                type="text"
-                placeholder="Mobile"
-                value={editForm.mobile}
-                onChange={(e) =>
-                  setEditForm((prev) => ({ ...prev, mobile: e.target.value }))
-                }
-              />
-              <input
-                type="text"
-                placeholder="Company Name"
-                value={editForm.companyName}
-                onChange={(e) =>
-                  setEditForm((prev) => ({
-                    ...prev,
-                    companyName: e.target.value,
-                  }))
-                }
-              />
-              <input
-                type="text"
-                placeholder="Company Address"
-                value={editForm.companyAddress}
-                onChange={(e) =>
-                  setEditForm((prev) => ({
-                    ...prev,
-                    companyAddress: e.target.value,
-                  }))
-                }
-              />
-              <input
-                type="text"
-                placeholder="Domain"
-                value={editForm.domain}
-                onChange={(e) =>
-                  setEditForm((prev) => ({ ...prev, domain: e.target.value }))
-                }
-              />
-              <input
-                type="number"
-                placeholder="Number of Users"
-                value={editForm.numberOfUsers}
-                onChange={(e) =>
-                  setEditForm((prev) => ({
-                    ...prev,
-                    numberOfUsers: e.target.value,
-                  }))
-                }
-                min={1}
-                required
-              />
-              <div className="admin-modal-actions">
-                <button
-                  type="button"
-                  className="btn-action"
-                  onClick={closeEditModal}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn-action btn-export"
-                  disabled={editLoading}
-                >
-                  {editLoading ? "Saving..." : "Update User"}
-                </button>
-              </div>
-            </form>
+      {
+        isEditModalOpen && (
+          <div className="admin-modal-backdrop">
+            <div className="admin-modal">
+              <h3>Edit User</h3>
+              <form className="admin-modal-form" onSubmit={handleEditSave}>
+                <div className="form-group">
+                  <label>Client Name</label>
+                  <input
+                    type="text"
+                    placeholder="Full Name"
+                    value={editForm.name}
+                    onChange={(e) =>
+                      setEditForm((prev) => ({ ...prev, name: e.target.value }))
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Email Address</label>
+                    <input
+                      type="email"
+                      placeholder="Email"
+                      value={editForm.email}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({ ...prev, email: e.target.value }))
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Mobile Number</label>
+                    <input
+                      type="text"
+                      placeholder="Mobile"
+                      value={editForm.mobile}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({ ...prev, mobile: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Company Name</label>
+                  <input
+                    type="text"
+                    placeholder="Company Name"
+                    value={editForm.companyName}
+                    onChange={(e) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        companyName: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Company Address</label>
+                  <input
+                    type="text"
+                    placeholder="Company Address"
+                    value={editForm.companyAddress}
+                    onChange={(e) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        companyAddress: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Subdomain</label>
+                    <input
+                      type="text"
+                      placeholder="Domain"
+                      value={editForm.domain}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({ ...prev, domain: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Database URL</label>
+                    <input
+                      type="text"
+                      placeholder="Database URL"
+                      value={editForm.databaseUrl}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({ ...prev, databaseUrl: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Plan Type</label>
+                    <select
+                      value={editForm.planType}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({ ...prev, planType: e.target.value }))
+                      }
+                    >
+                      <option value="basic">Basic</option>
+                      <option value="pro">Pro</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Duration</label>
+                    <select
+                      value={editForm.subscriptionDuration}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({ ...prev, subscriptionDuration: e.target.value }))
+                      }
+                    >
+                      <option value="monthly">Monthly</option>
+                      <option value="6months">6 Months</option>
+                      <option value="1year">1 Year</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Number of Users</label>
+                  <input
+                    type="number"
+                    placeholder="Number of Users"
+                    value={editForm.numberOfUsers}
+                    onChange={(e) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        numberOfUsers: e.target.value,
+                      }))
+                    }
+                    min={1}
+                    required
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginTop: "1rem" }}>
+                  <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500 }}>Payment Status</label>
+                  <div style={{ display: "flex", gap: "15px" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "5px", cursor: "pointer" }}>
+                      <input
+                        type="radio"
+                        name="paymentStatus"
+                        value="pending"
+                        checked={editForm.paymentStatus === "pending"}
+                        onChange={() => setEditForm(prev => ({ ...prev, paymentStatus: "pending" }))}
+                      />
+                      Pending
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: "5px", cursor: "pointer" }}>
+                      <input
+                        type="radio"
+                        name="paymentStatus"
+                        value="completed"
+                        checked={editForm.paymentStatus === "completed"}
+                        onChange={() => setEditForm(prev => ({ ...prev, paymentStatus: "completed" }))}
+                      />
+                      Completed (Active)
+                    </label>
+                  </div>
+                </div>
+
+                <div className="admin-modal-actions">
+                  <button
+                    type="button"
+                    className="btn-action"
+                    onClick={closeEditModal}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-action btn-export"
+                    disabled={editLoading}
+                  >
+                    {editLoading ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
+
+      {
+        isAddTenantModalOpen && (
+          <div className="admin-modal-backdrop">
+            <div className="admin-modal">
+              <h3>Add New Client (Multi-tenant)</h3>
+              <p style={{ fontSize: "0.8rem", color: "#666", marginBottom: "1rem" }}>
+                This will provision a new database and subdomain for the OMS.
+              </p>
+              <form className="admin-modal-form" onSubmit={handleAddTenant}>
+                <div className="form-group">
+                  <label>Admin Name</label>
+                  <input
+                    type="text"
+                    placeholder="Full Name"
+                    value={addTenantForm.name}
+                    onChange={(e) =>
+                      setAddTenantForm((prev) => ({ ...prev, name: e.target.value }))
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Email</label>
+                    <input
+                      type="email"
+                      placeholder="admin@client.com"
+                      value={addTenantForm.email}
+                      onChange={(e) =>
+                        setAddTenantForm((prev) => ({ ...prev, email: e.target.value }))
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Mobile</label>
+                    <input
+                      type="text"
+                      placeholder="Mobile Number"
+                      value={addTenantForm.mobile}
+                      onChange={(e) =>
+                        setAddTenantForm((prev) => ({ ...prev, mobile: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Password</label>
+                  <input
+                    type="password"
+                    placeholder="Initial Password"
+                    value={addTenantForm.password}
+                    onChange={(e) =>
+                      setAddTenantForm((prev) => ({ ...prev, password: e.target.value }))
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Company Name</label>
+                  <input
+                    type="text"
+                    placeholder="Company Name"
+                    value={addTenantForm.companyName}
+                    onChange={(e) =>
+                      setAddTenantForm((prev) => ({ ...prev, companyName: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Company Address</label>
+                  <input
+                    type="text"
+                    placeholder="Address"
+                    value={addTenantForm.companyAddress}
+                    onChange={(e) =>
+                      setAddTenantForm((prev) => ({ ...prev, companyAddress: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Subdomain (Tenant ID)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., client1"
+                      value={addTenantForm.tenantId}
+                      onChange={(e) =>
+                        setAddTenantForm((prev) => ({ ...prev, tenantId: e.target.value }))
+                      }
+                      required
+                    />
+                    <small>Used for subdomain routing (e.g., client1.yourdomain.com)</small>
+                  </div>
+                  <div className="form-group">
+                    <label>Database URL</label>
+                    <input
+                      type="text"
+                      placeholder="postgresql://..."
+                      value={addTenantForm.databaseUrl}
+                      onChange={(e) =>
+                        setAddTenantForm((prev) => ({ ...prev, databaseUrl: e.target.value }))
+                      }
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Plan Type</label>
+                    <select
+                      value={addTenantForm.planType}
+                      onChange={(e) =>
+                        setAddTenantForm((prev) => ({ ...prev, planType: e.target.value }))
+                      }
+                    >
+                      <option value="basic">Basic</option>
+                      <option value="pro">Pro</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Duration</label>
+                    <select
+                      value={addTenantForm.subscriptionDuration}
+                      onChange={(e) =>
+                        setAddTenantForm((prev) => ({ ...prev, subscriptionDuration: e.target.value }))
+                      }
+                    >
+                      <option value="monthly">Monthly</option>
+                      <option value="6months">6 Months</option>
+                      <option value="1year">1 Year</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Number of Users</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={addTenantForm.numberOfUsers}
+                    onChange={(e) =>
+                      setAddTenantForm((prev) => ({ ...prev, numberOfUsers: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginTop: "1rem" }}>
+                  <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500 }}>Payment Status</label>
+                  <div style={{ display: "flex", gap: "15px" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "5px", cursor: "pointer" }}>
+                      <input
+                        type="radio"
+                        name="addTenantPaymentStatus"
+                        value="pending"
+                        checked={addTenantForm.paymentStatus === "pending"}
+                        onChange={() => setAddTenantForm(prev => ({ ...prev, paymentStatus: "pending" }))}
+                      />
+                      Pending
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: "5px", cursor: "pointer" }}>
+                      <input
+                        type="radio"
+                        name="addTenantPaymentStatus"
+                        value="completed"
+                        checked={addTenantForm.paymentStatus === "completed"}
+                        onChange={() => setAddTenantForm(prev => ({ ...prev, paymentStatus: "completed" }))}
+                      />
+                      Completed (Active)
+                    </label>
+                  </div>
+                </div>
+
+                <div className="admin-modal-actions">
+                  <button
+                    type="button"
+                    className="btn-action"
+                    onClick={() => setIsAddTenantModalOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-action btn-export"
+                    disabled={addTenantLoading}
+                  >
+                    {addTenantLoading ? "Registering..." : "Add Client"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )
+      }
     </div>
   );
 };

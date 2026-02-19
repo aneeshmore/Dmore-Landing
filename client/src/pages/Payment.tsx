@@ -34,19 +34,23 @@ const Payment = () => {
   const [couponCode, setCouponCode] = useState("");
   const [couponApplied, setCouponApplied] = useState(false);
 
-  const COUPON_CODE = "colorsocity";
+  const COUPON_CODE = "coloursociety";
   const COUPON_DISCOUNT = 2000;
+  const GST_RATE = 0.18;
 
   const isUser = user?.role === "user";
   const shouldShowSuccess = isUser && paymentStatus === "Completed";
   const shouldShowFailed = isUser && paymentStatus === "Failed";
   const shouldShowPayment = !isUser || paymentStatus === "Pending";
   const isCouponEligiblePlan = selectedPeriod === "1year";
-  const appliedDiscount = couponApplied && isCouponEligiblePlan ? COUPON_DISCOUNT : 0;
-  const displayTotal = Math.max(
-    PRICING[selectedPlan][selectedPeriod].amount - appliedDiscount,
-    0,
-  );
+  const baseAmount = PRICING[selectedPlan][selectedPeriod].amount;
+  const appliedDiscount =
+    couponApplied && isCouponEligiblePlan ? COUPON_DISCOUNT : 0;
+  const discountedAmount = Math.max(baseAmount - appliedDiscount, 0);
+  const gstAmount = Number((discountedAmount * GST_RATE).toFixed(2));
+  const finalPayable = Number((discountedAmount + gstAmount).toFixed(2));
+
+  const formatCurrency = (amount: number) => `₹${amount.toFixed(2)}`;
 
   useEffect(() => {
     if (!token) navigate("/login");
@@ -139,6 +143,7 @@ const Payment = () => {
         planType: selectedPlan,
         period: selectedPeriod as SubscriptionDuration,
         couponCode: couponApplied ? couponCode.trim() : undefined,
+        clientFinalAmount: finalPayable,
       });
 
       if (!order?.orderId) {
@@ -328,7 +333,11 @@ const Payment = () => {
 
             <div className="summary-row">
               <span>Coupon</span>
-              <span>{couponApplied && isCouponEligiblePlan ? "Applied" : "Not Applied"}</span>
+              <span>
+                {couponApplied && isCouponEligiblePlan
+                  ? "Applied"
+                  : "Not Applied"}
+              </span>
             </div>
 
             <div className="summary-row coupon-row">
@@ -353,13 +362,23 @@ const Payment = () => {
             </div>
 
             <div className="summary-row">
+              <span>Base Price</span>
+              <span>{formatCurrency(baseAmount)}</span>
+            </div>
+
+            <div className="summary-row">
               <span>Discount</span>
-              <span>₹{appliedDiscount}</span>
+              <span>{formatCurrency(appliedDiscount)}</span>
+            </div>
+
+            <div className="summary-row">
+              <span>GST (18%)</span>
+              <span>{formatCurrency(gstAmount)}</span>
             </div>
 
             <div className="summary-row total">
-              <span>Total</span>
-              <span>₹{displayTotal}</span>
+              <span>Final Payable</span>
+              <span>{formatCurrency(finalPayable)}</span>
             </div>
 
             {error && <div className="payment-error">{error}</div>}
@@ -369,7 +388,9 @@ const Payment = () => {
               onClick={handlePayment}
               disabled={loading || !razorpayLoaded}
             >
-              {loading ? "Processing..." : `Pay ₹${displayTotal}`}
+              {loading
+                ? "Processing..."
+                : `Pay ${formatCurrency(finalPayable)}`}
             </button>
           </div>
         </div>

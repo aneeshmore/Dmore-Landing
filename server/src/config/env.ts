@@ -9,6 +9,8 @@ const envSchema = z.object({
   RAZORPAY_KEY_SECRET: z.string().min(1),
   ADMIN_EMAIL: z.string().email().optional(),
   ADMIN_PASSWORD: z.string().min(6).optional(),
+  ERP_API_URL: z.string().url().optional(),
+  WEBHOOK_SECRET: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -28,4 +30,6 @@ export const config = {
   razorpayKeySecret: env.RAZORPAY_KEY_SECRET || "",
   adminEmail: env.ADMIN_EMAIL || "admin@morex.com",
   adminPassword: env.ADMIN_PASSWORD || "admin123456",
+  erpApiUrl: env.ERP_API_URL || "http://localhost:5000/api/v1",
+  webhookSecret: env.WEBHOOK_SECRET || "morex_super_secret_webhook_key_2026",
 };
