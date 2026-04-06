@@ -154,7 +154,7 @@ const pricingPlans = [
       "Single User only",
       "Quotation Management",
       "Invoice",
-      "Bach Chart Generation",
+      "Batch Chart Generation",
       "1K formulation master",
       "2K formulation master",
       "Order Tracing",

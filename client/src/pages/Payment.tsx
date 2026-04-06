@@ -1,9 +1,9 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../context/AuthContext";
+import { api } from "../api/client";
 import {
   paymentService,
-  PRICING,
   type PlanPeriod,
   type PaymentStatusResponse,
 } from "../services/paymentService";
@@ -33,6 +33,7 @@ const Payment = () => {
   const [statusLoading, setStatusLoading] = useState(true);
   const [couponCode, setCouponCode] = useState("");
   const [couponApplied, setCouponApplied] = useState(false);
+  const [pricing, setPricing] = useState<any>(null);
 
   const COUPON_CODE = "coloursociety";
   const COUPON_DISCOUNT = 2000;
@@ -43,7 +44,8 @@ const Payment = () => {
   const shouldShowFailed = isUser && paymentStatus === "Failed";
   const shouldShowPayment = !isUser || paymentStatus === "Pending";
   const isCouponEligiblePlan = selectedPeriod === "1year";
-  const baseAmount = PRICING[selectedPlan][selectedPeriod].amount;
+  
+  const baseAmount = pricing?.[selectedPlan]?.[selectedPeriod] || 0;
   const appliedDiscount =
     couponApplied && isCouponEligiblePlan ? COUPON_DISCOUNT : 0;
   const discountedAmount = Math.max(baseAmount - appliedDiscount, 0);
@@ -77,6 +79,18 @@ const Payment = () => {
 
     fetchPaymentStatus();
   }, [isUser, token]);
+
+  useEffect(() => {
+    const fetchPricing = async () => {
+      try {
+        const { data } = await api.get("pricing");
+        setPricing(data);
+      } catch (err) {
+        showToast("Could not load latest pricing.", "error");
+      }
+    };
+    fetchPricing();
+  }, [showToast]);
 
   useEffect(() => {
     if (!shouldShowPayment) return;
@@ -156,7 +170,7 @@ const Payment = () => {
         currency: order.currency || "INR",
         name: "PaintOS",
         description: `${selectedPlan.toUpperCase()} - ${
-          PRICING[selectedPlan][selectedPeriod].label
+          selectedPeriod
         }`,
         order_id: order.orderId,
         prefill: {
@@ -304,7 +318,7 @@ const Payment = () => {
 
             <div className="period-options">
               {periods.map((period) => {
-                const pricing = PRICING[selectedPlan][period];
+                const amount = pricing?.[selectedPlan]?.[period] || 0;
 
                 return (
                   <button
@@ -312,8 +326,8 @@ const Payment = () => {
                     className={`period-btn ${selectedPeriod === period ? "active" : ""}`}
                     onClick={() => setSelectedPeriod(period)}
                   >
-                    <span>{pricing.label}</span>
-                    <strong>₹{pricing.amount}</strong>
+                    <span>{period === "monthly" ? "Monthly" : period === "6months" ? "6 Months" : "1 Year"}</span>
+                    <strong>₹{amount}</strong>
                   </button>
                 );
               })}
@@ -328,7 +342,7 @@ const Payment = () => {
 
             <div className="summary-row">
               <span>Duration</span>
-              <span>{PRICING[selectedPlan][selectedPeriod].label}</span>
+              <span>{selectedPeriod === "monthly" ? "Monthly" : selectedPeriod === "6months" ? "6 Months" : "1 Year"}</span>
             </div>
 
             <div className="summary-row">

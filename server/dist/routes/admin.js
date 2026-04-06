@@ -148,6 +148,26 @@ router.get("/registered-users", auth_1.authenticate, auth_1.requireAdmin, async 
         res.status(500).json({ message: "Server error" });
     }
 });
+router.put("/update-pricing", auth_1.authenticate, auth_1.requireAdmin, async (req, res) => {
+    try {
+        const { planType, monthlyPrice, sixMonthPrice, yearlyPrice } = req.body;
+        if (!planType || monthlyPrice === undefined || sixMonthPrice === undefined || yearlyPrice === undefined) {
+            return res.status(400).json({ message: "All prices are required." });
+        }
+        await db_1.db.update(schema_1.plans)
+            .set({
+            monthlyPrice: String(monthlyPrice),
+            sixMonthPrice: String(sixMonthPrice),
+            yearlyPrice: String(yearlyPrice)
+        })
+            .where((0, drizzle_orm_1.eq)(schema_1.plans.planType, planType));
+        res.json({ message: `${planType.toUpperCase()} plan pricing updated successfully.` });
+    }
+    catch (error) {
+        console.error("Update pricing failed:", error);
+        res.status(500).json({ message: "Failed to update pricing." });
+    }
+});
 router.post("/change-password", auth_1.authenticate, auth_1.requireAdmin, async (req, res) => {
     try {
         const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);

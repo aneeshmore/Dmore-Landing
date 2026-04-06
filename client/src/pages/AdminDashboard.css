@@ -158,6 +158,135 @@
   color: #334155;
 }
 
+/* ===== PRICING MANAGEMENT ===== */
+.admin-pricing-card {
+  margin-top: 30px;
+  margin-bottom: 30px;
+}
+
+.loading-text {
+  font-size: 13px;
+  color: #2563eb;
+  font-weight: 500;
+  animation: pulse 1.5s infinite;
+}
+
+.pricing-grid {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.pricing-settings-card {
+  flex: 1;
+  min-width: 320px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+  transition: all 0.3s ease;
+}
+
+.pricing-settings-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.pricing-settings-card h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.pricing-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.pricing-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pricing-field label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pricing-field input {
+  padding: 12px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  transition: all 0.2s;
+}
+
+.pricing-field input:focus {
+  border-color: #2563eb;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.btn-update-pricing {
+  margin-top: 10px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+.btn-update-pricing:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
+}
+
+.btn-update-pricing:active {
+  transform: translateY(0);
+}
+
+.btn-update-pricing:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.pricing-settings-card.pro h3 {
+  color: #7c3aed;
+  border-bottom-color: #ddd6fe;
+}
+
+.btn-update-pricing.pro-button {
+  background: #7c3aed;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
+}
+
+.btn-update-pricing.pro-button:hover:not(:disabled) {
+  background: #6d28d9;
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.3);
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
 .admin-modal-backdrop {
   position: fixed;
   inset: 0;

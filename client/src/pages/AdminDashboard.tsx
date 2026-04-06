@@ -49,6 +49,14 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Pricing Management State - Use empty strings initially for better UX
+  const [pricing, setPricing] = useState({
+    basic: { monthly: "" as any, "6months": "" as any, "1year": "" as any },
+    pro: { monthly: "" as any, "6months": "" as any, "1year": "" as any }
+  });
+  const [pricingLoading, setPricingLoading] = useState(false);
+
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editUserId, setEditUserId] = useState<number | null>(null);
   const [editLoading, setEditLoading] = useState(false);
@@ -88,7 +96,7 @@ const AdminDashboard = () => {
     setLoading(true);
     setError("");
     try {
-      const { data } = await api.get("/admin/registered-users");
+      const { data } = await api.get("admin/registered-users");
       setUsers(data.users || []);
     } catch {
       setError("Unable to load users.");
@@ -98,8 +106,47 @@ const AdminDashboard = () => {
     }
   };
 
+  const fetchPricing = async () => {
+    try {
+      const { data } = await api.get("pricing");
+      setPricing({
+        basic: {
+          monthly: data.basic.monthly,
+          "6months": data.basic["6months"],
+          "1year": data.basic["1year"]
+        },
+        pro: {
+          monthly: data.pro.monthly,
+          "6months": data.pro["6months"],
+          "1year": data.pro["1year"]
+        }
+      });
+    } catch (err) {
+      console.error("Failed to fetch pricing");
+    }
+  };
+
+  const updatePricing = async (planType: string, values: any) => {
+    setPricingLoading(true);
+    try {
+      await api.put("admin/update-pricing", {
+        planType,
+        monthlyPrice: Number(values.monthly),
+        sixMonthPrice: Number(values["6months"]),
+        yearlyPrice: Number(values["1year"])
+      });
+      showToast(`${planType.toUpperCase()} plan updated`, "success");
+      fetchPricing();
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || "Failed to update pricing", "error");
+    } finally {
+      setPricingLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
+    fetchPricing();
   }, []);
 
   useEffect(() => {
@@ -375,6 +422,88 @@ const AdminDashboard = () => {
           </div>
         </div>
 
+        <div className="admin-card admin-pricing-card">
+          <div className="admin-card-header">
+            <h2>Plan Pricing Management</h2>
+            {pricingLoading && <span className="loading-text">Saving...</span>}
+          </div>
+          <div className="pricing-grid">
+            <div className="pricing-settings-card">
+              <h3>Basic Plan</h3>
+              <div className="pricing-fields">
+                <div className="pricing-field">
+                  <label>Monthly Price (INR)</label>
+                  <input
+                    type="text"
+                    value={pricing.basic.monthly}
+                    onChange={(e) => setPricing(prev => ({ ...prev, basic: { ...prev.basic, monthly: Number(e.target.value) } }))}
+                  />
+                </div>
+                <div className="pricing-field">
+                  <label>6 Months Price (INR)</label>
+                  <input
+                    type="text"
+                    value={pricing.basic["6months"]}
+                    onChange={(e) => setPricing(prev => ({ ...prev, basic: { ...prev.basic, "6months": Number(e.target.value) } }))}
+                  />
+                </div>
+                <div className="pricing-field">
+                  <label>Yearly Price (INR)</label>
+                  <input
+                    type="text"
+                    value={pricing.basic["1year"]}
+                    onChange={(e) => setPricing(prev => ({ ...prev, basic: { ...prev.basic, "1year": Number(e.target.value) } }))}
+                  />
+                </div>
+                <button
+                  className="btn-update-pricing"
+                  onClick={() => updatePricing('basic', pricing.basic)}
+                  disabled={pricingLoading}
+                >
+                  Update Basic Plan
+                </button>
+              </div>
+            </div>
+
+            <div className="pricing-settings-card pro">
+              <h3>Pro Plan</h3>
+              <div className="pricing-fields">
+                <div className="pricing-field">
+                  <label>Monthly Price (INR)</label>
+                  <input
+                    type="text"
+                    value={pricing.pro.monthly}
+                    onChange={(e) => setPricing(prev => ({ ...prev, pro: { ...prev.pro, monthly: Number(e.target.value) } }))}
+                  />
+                </div>
+                <div className="pricing-field">
+                  <label>6 Months Price (INR)</label>
+                  <input
+                    type="text"
+                    value={pricing.pro["6months"]}
+                    onChange={(e) => setPricing(prev => ({ ...prev, pro: { ...prev.pro, "6months": Number(e.target.value) } }))}
+                  />
+                </div>
+                <div className="pricing-field">
+                  <label>Yearly Price (INR)</label>
+                  <input
+                    type="text"
+                    value={pricing.pro["1year"]}
+                    onChange={(e) => setPricing(prev => ({ ...prev, pro: { ...prev.pro, "1year": Number(e.target.value) } }))}
+                  />
+                </div>
+                <button
+                  className="btn-update-pricing pro-button"
+                  onClick={() => updatePricing('pro', pricing.pro)}
+                  disabled={pricingLoading}
+                >
+                  Update Pro Plan
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="admin-card admin-table-card">
           <div className="admin-card-header">
             <h2>Registered Users</h2>
@@ -469,8 +598,8 @@ const AdminDashboard = () => {
                     const finalAmount = hasVerifiedPayment
                       ? (toNumber(entry.paymentFinalAmount) ??
                         (baseAmount !== null &&
-                        discountAmount !== null &&
-                        gstAmount !== null
+                          discountAmount !== null &&
+                          gstAmount !== null
                           ? Number((baseAmount - discountAmount + gstAmount).toFixed(2))
                           : null))
                       : null;

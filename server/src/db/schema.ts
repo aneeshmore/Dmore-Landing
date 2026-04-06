@@ -72,5 +72,19 @@ export const users = pgTable("users", {
     .$onUpdate(() => new Date()),
 });
 
+
+export const plans = pgTable("plans", {
+  id: serial("id").primaryKey(),
+  planType: text("plan_type").unique().notNull(), // basic | pro
+  monthlyPrice: numeric("monthly_price", { precision: 12, scale: 2 }).notNull(),
+  sixMonthPrice: numeric("six_month_price", { precision: 12, scale: 2 }).notNull(),
+  yearlyPrice: numeric("yearly_price", { precision: 12, scale: 2 }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
 export type User = InferSelectModel<typeof users>;
 export type NewUser = InferInsertModel<typeof users>;
+export type Plan = InferSelectModel<typeof plans>;
+export type NewPlan = InferInsertModel<typeof plans>;

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.users = exports.accountStatusEnum = exports.subscriptionDurationEnum = exports.planTypeEnum = exports.roleEnum = void 0;
+exports.plans = exports.users = exports.accountStatusEnum = exports.subscriptionDurationEnum = exports.planTypeEnum = exports.roleEnum = void 0;
 const pg_core_1 = require("drizzle-orm/pg-core");
 exports.roleEnum = (0, pg_core_1.pgEnum)("role", ["admin", "user"]);
 exports.planTypeEnum = (0, pg_core_1.pgEnum)("plan_type", ["basic", "pro"]);
@@ -52,6 +52,16 @@ exports.users = (0, pg_core_1.pgTable)("users", {
     }),
     renewalDate: (0, pg_core_1.timestamp)("renewal_date", { withTimezone: true }),
     createdAt: (0, pg_core_1.timestamp)("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: (0, pg_core_1.timestamp)("updated_at", { withTimezone: true })
+        .defaultNow()
+        .$onUpdate(() => new Date()),
+});
+exports.plans = (0, pg_core_1.pgTable)("plans", {
+    id: (0, pg_core_1.serial)("id").primaryKey(),
+    planType: (0, pg_core_1.text)("plan_type").unique().notNull(), // basic | pro
+    monthlyPrice: (0, pg_core_1.numeric)("monthly_price", { precision: 12, scale: 2 }).notNull(),
+    sixMonthPrice: (0, pg_core_1.numeric)("six_month_price", { precision: 12, scale: 2 }).notNull(),
+    yearlyPrice: (0, pg_core_1.numeric)("yearly_price", { precision: 12, scale: 2 }).notNull(),
     updatedAt: (0, pg_core_1.timestamp)("updated_at", { withTimezone: true })
         .defaultNow()
         .$onUpdate(() => new Date()),

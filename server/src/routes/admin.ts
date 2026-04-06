@@ -3,7 +3,7 @@
 import express from "express";
 import { desc, eq } from "drizzle-orm";
 import { db } from "../db";
-import { users } from "../db/schema";
+import { users, plans } from "../db/schema";
 import { z } from "zod";
 import { AuthenticatedRequest, authenticate, requireAdmin } from "../middleware/auth";
 import { findUserById, updateUser } from "../services/userService";
@@ -127,6 +127,33 @@ router.get(
       res.status(500).json({ message: "Server error" });
     }
   },
+);
+
+router.put(
+  "/update-pricing",
+  authenticate,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { planType, monthlyPrice, sixMonthPrice, yearlyPrice } = req.body;
+      if (!planType || monthlyPrice === undefined || sixMonthPrice === undefined || yearlyPrice === undefined) {
+        return res.status(400).json({ message: "All prices are required." });
+      }
+
+      await db.update(plans)
+        .set({
+          monthlyPrice: String(monthlyPrice),
+          sixMonthPrice: String(sixMonthPrice),
+          yearlyPrice: String(yearlyPrice)
+        })
+        .where(eq(plans.planType, planType));
+
+      res.json({ message: `${planType.toUpperCase()} plan pricing updated successfully.` });
+    } catch (error) {
+      console.error("Update pricing failed:", error);
+      res.status(500).json({ message: "Failed to update pricing." });
+    }
+  }
 );
 
 router.post(
