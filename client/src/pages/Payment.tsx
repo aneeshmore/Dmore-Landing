@@ -35,20 +35,17 @@ const Payment = () => {
   const [couponApplied, setCouponApplied] = useState(false);
   const [pricing, setPricing] = useState<any>(null);
 
-  const COUPON_CODE = "coloursociety";
-  const COUPON_DISCOUNT = 2000;
-  const GST_RATE = 0.18;
+  const [discountAmount, setDiscountAmount] = useState(0);
 
   const isUser = user?.role === "user";
   const shouldShowSuccess = isUser && paymentStatus === "Completed";
   const shouldShowFailed = isUser && paymentStatus === "Failed";
   const shouldShowPayment = !isUser || paymentStatus === "Pending";
-  const isCouponEligiblePlan = selectedPeriod === "1year";
   
   const baseAmount = pricing?.[selectedPlan]?.[selectedPeriod] || 0;
-  const appliedDiscount =
-    couponApplied && isCouponEligiblePlan ? COUPON_DISCOUNT : 0;
+  const appliedDiscount = couponApplied ? discountAmount : 0;
   const discountedAmount = Math.max(baseAmount - appliedDiscount, 0);
+  const GST_RATE = 0.18;
   const gstAmount = Number((discountedAmount * GST_RATE).toFixed(2));
   const finalPayable = Number((discountedAmount + gstAmount).toFixed(2));
 
@@ -122,23 +119,34 @@ const Payment = () => {
     });
   }, [shouldShowPayment, showToast]);
 
+  // Plan period effect - currently does nothing since coupons apply to all
   useEffect(() => {
-    if (!isCouponEligiblePlan && couponApplied) {
-      setCouponApplied(false);
-    }
-  }, [isCouponEligiblePlan, couponApplied]);
+  }, [selectedPeriod]);
 
-  const handleApplyCoupon = () => {
-    const normalizedCode = couponCode.trim().toLowerCase();
-
-    if (isCouponEligiblePlan && normalizedCode === COUPON_CODE) {
-      setCouponApplied(true);
-      showToast("Coupon applied! ₹2,000 discount applied.", "success");
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      showToast("Please enter a coupon code", "info");
       return;
     }
 
-    setCouponApplied(false);
-    showToast("Coupon not valid for this plan.", "error");
+    setLoading(true);
+    try {
+      const { data } = await api.post("users/validate-coupon", {
+        code: couponCode.trim(),
+      });
+
+      if (data.valid) {
+        setDiscountAmount(data.discountAmount);
+        setCouponApplied(true);
+        showToast(`Coupon applied! ₹${data.discountAmount} discount applied.`, "success");
+      }
+    } catch (err: any) {
+      setCouponApplied(false);
+      setDiscountAmount(0);
+      showToast(err?.response?.data?.message || "Invalid coupon code", "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handlePayment = async () => {
@@ -348,7 +356,7 @@ const Payment = () => {
             <div className="summary-row">
               <span>Coupon</span>
               <span>
-                {couponApplied && isCouponEligiblePlan
+                {couponApplied
                   ? "Applied"
                   : "Not Applied"}
               </span>

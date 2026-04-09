@@ -22,6 +22,9 @@ const authSafeUserSelection = {
   subscriptionDuration: users.subscriptionDuration,
   accountStatus: users.accountStatus,
   renewalDate: users.renewalDate,
+  couponCode: users.couponCode,
+  couponDiscountAmount: users.couponDiscountAmount,
+  couponCreatedAt: users.couponCreatedAt,
   createdAt: users.createdAt,
   updatedAt: users.updatedAt,
 };
@@ -42,6 +45,9 @@ const listUserSelection = {
   subscriptionDuration: users.subscriptionDuration,
   accountStatus: users.accountStatus,
   renewalDate: users.renewalDate,
+  couponCode: users.couponCode,
+  couponDiscountAmount: users.couponDiscountAmount,
+  couponCreatedAt: users.couponCreatedAt,
   createdAt: users.createdAt,
   updatedAt: users.updatedAt,
 };
@@ -190,6 +196,9 @@ export type UpdateUserInput = Partial<
     | "paymentGstAmount"
     | "paymentFinalAmount"
     | "renewalDate"
+    | "couponCode"
+    | "couponDiscountAmount"
+    | "couponCreatedAt"
   >
 > & { password?: string };
 

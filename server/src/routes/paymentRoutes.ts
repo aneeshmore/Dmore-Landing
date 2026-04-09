@@ -5,7 +5,7 @@ import { config } from "../config/env";
 import { authenticate, AuthenticatedRequest } from "../middleware/auth";
 import { z, ZodError } from "zod";
 import { db } from "../db";
-import { users } from "../db/schema";
+import { users, transactions } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { findUserById } from "../services/userService";
 
@@ -417,6 +417,26 @@ router.post(
             accountStatus: "active",
           })
           .where(eq(users.id, userId));
+      }
+
+      // Record transaction
+      try {
+        await db.insert(transactions).values({
+          userId,
+          planType,
+          period,
+          baseAmount: baseAmount.toFixed(2),
+          discountAmount: discountAmount.toFixed(2),
+          gstAmount: gstAmount.toFixed(2),
+          finalAmount: finalAmount.toFixed(2),
+          razorpayOrderId,
+          razorpayPaymentId,
+          couponUsed: couponApplied ? (notes.couponCode || "coloursociety") : null,
+          status: "completed",
+        });
+      } catch (logErr) {
+        console.error("Failed to log transaction:", logErr);
+        // Don't fail the verification if logging fails, but it's important
       }
 
       return res.json({

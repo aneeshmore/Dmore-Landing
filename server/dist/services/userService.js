@@ -24,6 +24,9 @@ const authSafeUserSelection = {
     subscriptionDuration: schema_1.users.subscriptionDuration,
     accountStatus: schema_1.users.accountStatus,
     renewalDate: schema_1.users.renewalDate,
+    couponCode: schema_1.users.couponCode,
+    couponDiscountAmount: schema_1.users.couponDiscountAmount,
+    couponCreatedAt: schema_1.users.couponCreatedAt,
     createdAt: schema_1.users.createdAt,
     updatedAt: schema_1.users.updatedAt,
 };
@@ -43,6 +46,9 @@ const listUserSelection = {
     subscriptionDuration: schema_1.users.subscriptionDuration,
     accountStatus: schema_1.users.accountStatus,
     renewalDate: schema_1.users.renewalDate,
+    couponCode: schema_1.users.couponCode,
+    couponDiscountAmount: schema_1.users.couponDiscountAmount,
+    couponCreatedAt: schema_1.users.couponCreatedAt,
     createdAt: schema_1.users.createdAt,
     updatedAt: schema_1.users.updatedAt,
 };

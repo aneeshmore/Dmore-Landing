@@ -98,6 +98,9 @@ router.get("/registered-users", auth_1.authenticate, auth_1.requireAdmin, async 
                 paymentFinalAmount: schema_1.users.paymentFinalAmount,
                 renewalDate: schema_1.users.renewalDate,
                 isActive: schema_1.users.isActive,
+                couponCode: schema_1.users.couponCode,
+                couponDiscountAmount: schema_1.users.couponDiscountAmount,
+                couponCreatedAt: schema_1.users.couponCreatedAt,
                 createdAt: schema_1.users.createdAt,
             })
                 .from(schema_1.users)
@@ -124,6 +127,9 @@ router.get("/registered-users", auth_1.authenticate, auth_1.requireAdmin, async 
                 accountStatus: schema_1.users.accountStatus,
                 renewalDate: schema_1.users.renewalDate,
                 isActive: schema_1.users.isActive,
+                couponCode: schema_1.users.couponCode,
+                couponDiscountAmount: schema_1.users.couponDiscountAmount,
+                couponCreatedAt: schema_1.users.couponCreatedAt,
                 createdAt: schema_1.users.createdAt,
             })
                 .from(schema_1.users)
@@ -146,6 +152,147 @@ router.get("/registered-users", auth_1.authenticate, auth_1.requireAdmin, async 
     catch (error) {
         console.error("Error fetching users:", error);
         res.status(500).json({ message: "Server error" });
+    }
+});
+router.get("/plans", auth_1.authenticate, auth_1.requireAdmin, async (_req, res) => {
+    try {
+        const allPlans = await db_1.db.select().from(schema_1.plans);
+        res.json(allPlans);
+    }
+    catch (error) {
+        res.status(500).json({ message: "Failed to fetch plans" });
+    }
+});
+router.put("/plans/:id", auth_1.authenticate, auth_1.requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        let { monthlyPrice, sixMonthPrice, yearlyPrice } = req.body;
+        if (monthlyPrice === "")
+            monthlyPrice = null;
+        if (sixMonthPrice === "")
+            sixMonthPrice = null;
+        if (yearlyPrice === "")
+            yearlyPrice = null;
+        await db_1.db
+            .update(schema_1.plans)
+            .set({
+            monthlyPrice,
+            sixMonthPrice,
+            yearlyPrice,
+            updatedAt: new Date(),
+        })
+            .where((0, drizzle_orm_1.eq)(schema_1.plans.id, Number(id)));
+        res.json({ message: "Plan updated successfully" });
+    }
+    catch (error) {
+        res.status(500).json({ message: "Failed to update plan" });
+    }
+});
+router.get("/transaction-summary", auth_1.authenticate, auth_1.requireAdmin, async (_req, res) => {
+    try {
+        const rawSummary = await db_1.db
+            .select({
+            id: schema_1.users.id,
+            email: schema_1.users.email,
+            planType: schema_1.users.planType,
+            subscriptionDuration: schema_1.users.subscriptionDuration,
+            accountStatus: schema_1.users.accountStatus,
+            renewalDate: schema_1.users.renewalDate,
+            paymentFinalAmount: schema_1.users.paymentFinalAmount,
+            transactionCount: (0, drizzle_orm_1.sql) `cast(count(${schema_1.transactions.id}) as integer)`,
+            totalSpentFromLogs: (0, drizzle_orm_1.sql) `coalesce(sum(cast(${schema_1.transactions.finalAmount} as numeric)), 0)`,
+        })
+            .from(schema_1.users)
+            .leftJoin(schema_1.transactions, (0, drizzle_orm_1.eq)(schema_1.users.id, schema_1.transactions.userId))
+            .groupBy(schema_1.users.id, schema_1.users.email, schema_1.users.planType, schema_1.users.subscriptionDuration, schema_1.users.accountStatus, schema_1.users.renewalDate, schema_1.users.paymentFinalAmount);
+        const summary = rawSummary.map(row => {
+            let spent = Number(row.totalSpentFromLogs);
+            let count = row.transactionCount;
+            // Ensure active users show at least one transaction using the same logic as AdminDashboard.tsx
+            if (count === 0 && (row.accountStatus === "active" || row.renewalDate)) {
+                if (row.paymentFinalAmount) {
+                    spent = Number(row.paymentFinalAmount);
+                }
+                else {
+                    const plan = row.planType || 'basic';
+                    const duration = row.subscriptionDuration || 'monthly';
+                    const base = PLAN_PRICING[plan]?.[duration] || 0;
+                    // Subtotal + 18% GST
+                    spent = Number((base * 1.18).toFixed(2));
+                }
+                count = 1;
+            }
+            return {
+                id: row.id,
+                email: row.email,
+                planType: row.planType,
+                transactionCount: count,
+                totalSpent: spent.toString(),
+            };
+        });
+        res.json(summary);
+    }
+    catch (error) {
+        console.error("Summary fetch error:", error);
+        res.status(500).json({ message: "Failed to fetch transaction summary" });
+    }
+});
+const PLAN_PRICING = {
+    basic: { monthly: 1499, "6months": 7999, "1year": 14999 },
+    pro: { monthly: 4999, "6months": 26999, "1year": 49999 },
+};
+router.get("/transactions/:userId", auth_1.authenticate, auth_1.requireAdmin, async (req, res) => {
+    try {
+        const userId = Number(req.params.userId);
+        // 1. Fetch real transactions
+        const logs = await db_1.db
+            .select()
+            .from(schema_1.transactions)
+            .where((0, drizzle_orm_1.eq)(schema_1.transactions.userId, userId))
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.transactions.createdAt));
+        // 2. Map fields to match requirement
+        let userTransactions = logs.map(tx => ({
+            ...tx,
+            planName: tx.planType,
+        }));
+        // 3. Fallback logic exactly matching AdminDashboard.tsx
+        if (userTransactions.length === 0) {
+            const [user] = await db_1.db
+                .select()
+                .from(schema_1.users)
+                .where((0, drizzle_orm_1.eq)(schema_1.users.id, userId))
+                .limit(1);
+            if (user && (user.accountStatus === "active" || user.renewalDate)) {
+                const plan = user.planType || 'basic';
+                const duration = user.subscriptionDuration || 'monthly';
+                const fallbackBase = PLAN_PRICING[plan]?.[duration] || 0;
+                const baseAmount = user.paymentBaseAmount || String(fallbackBase);
+                const discountAmount = user.paymentDiscountAmount || '0';
+                const gstAmount = user.paymentGstAmount || String(Number((Number(baseAmount) - Number(discountAmount)) * 0.18).toFixed(2));
+                const finalAmount = user.paymentFinalAmount || String(Number(baseAmount) - Number(discountAmount) + Number(gstAmount));
+                userTransactions = [{
+                        id: `legacy-${user.id}`,
+                        userId: user.id,
+                        planType: plan,
+                        planName: plan,
+                        period: duration,
+                        baseAmount,
+                        discountAmount,
+                        gstAmount,
+                        finalAmount,
+                        razorpayOrderId: 'N/A',
+                        razorpayPaymentId: 'N/A',
+                        couponUsed: user.couponCode || null,
+                        status: 'completed',
+                        createdAt: user.renewalDate || user.createdAt,
+                    }];
+            }
+        }
+        res.json(userTransactions);
+    }
+    catch (error) {
+        console.error("User transactions fetch error:", error);
+        res.status(500).json({ message: "Failed to fetch user transactions" });
     }
 });
 router.put("/update-pricing", auth_1.authenticate, auth_1.requireAdmin, async (req, res) => {

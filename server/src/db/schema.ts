@@ -66,6 +66,9 @@ export const users = pgTable("users", {
   }),
 
   renewalDate: timestamp("renewal_date", { withTimezone: true }),
+  couponCode: text("coupon_code"),
+  couponDiscountAmount: numeric("coupon_discount_amount", { precision: 12, scale: 2 }),
+  couponCreatedAt: timestamp("coupon_created_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
@@ -84,7 +87,27 @@ export const plans = pgTable("plans", {
     .$onUpdate(() => new Date()),
 });
 
+export const transactions = pgTable("transactions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  planType: text("plan_type").notNull(),
+  period: text("period").notNull(),
+  baseAmount: numeric("base_amount", { precision: 12, scale: 2 }).notNull(),
+  discountAmount: numeric("discount_amount", { precision: 12, scale: 2 }).default("0"),
+  gstAmount: numeric("gst_amount", { precision: 12, scale: 2 }).notNull(),
+  finalAmount: numeric("final_amount", { precision: 12, scale: 2 }).notNull(),
+  razorpayOrderId: text("razorpay_order_id"),
+  razorpayPaymentId: text("razorpay_payment_id"),
+  couponUsed: text("coupon_used"),
+  status: text("status").notNull().default("completed"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
 export type User = InferSelectModel<typeof users>;
 export type NewUser = InferInsertModel<typeof users>;
 export type Plan = InferSelectModel<typeof plans>;
 export type NewPlan = InferInsertModel<typeof plans>;
+export type Transaction = InferSelectModel<typeof transactions>;
+export type NewTransaction = InferInsertModel<typeof transactions>;

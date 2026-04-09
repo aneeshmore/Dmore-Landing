@@ -1,9 +1,9 @@
 // routes/admin.ts
 
 import express from "express";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { db } from "../db";
-import { users, plans } from "../db/schema";
+import { users, plans, transactions } from "../db/schema";
 import { z } from "zod";
 import { AuthenticatedRequest, authenticate, requireAdmin } from "../middleware/auth";
 import { findUserById, updateUser } from "../services/userService";
@@ -76,6 +76,9 @@ router.get(
             paymentFinalAmount: users.paymentFinalAmount,
             renewalDate: users.renewalDate,
             isActive: users.isActive,
+            couponCode: users.couponCode,
+            couponDiscountAmount: users.couponDiscountAmount,
+            couponCreatedAt: users.couponCreatedAt,
             createdAt: users.createdAt,
           })
           .from(users)
@@ -102,6 +105,9 @@ router.get(
             accountStatus: users.accountStatus,
             renewalDate: users.renewalDate,
             isActive: users.isActive,
+            couponCode: users.couponCode,
+            couponDiscountAmount: users.couponDiscountAmount,
+            couponCreatedAt: users.couponCreatedAt,
             createdAt: users.createdAt,
           })
           .from(users)
@@ -128,6 +134,166 @@ router.get(
     }
   },
 );
+
+router.get("/plans", authenticate, requireAdmin, async (_req, res) => {
+  try {
+    const allPlans = await db.select().from(plans);
+    res.json(allPlans);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch plans" });
+  }
+});
+
+router.put("/plans/:id", authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    let { monthlyPrice, sixMonthPrice, yearlyPrice } = req.body;
+
+    if (monthlyPrice === "") monthlyPrice = null;
+    if (sixMonthPrice === "") sixMonthPrice = null;
+    if (yearlyPrice === "") yearlyPrice = null;
+
+    await db
+      .update(plans)
+      .set({
+        monthlyPrice,
+        sixMonthPrice,
+        yearlyPrice,
+        updatedAt: new Date(),
+      })
+      .where(eq(plans.id, Number(id)));
+
+    res.json({ message: "Plan updated successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to update plan" });
+  }
+});
+
+router.get("/transaction-summary", authenticate, requireAdmin, async (_req, res) => {
+  try {
+    const rawSummary = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        planType: users.planType,
+        subscriptionDuration: users.subscriptionDuration,
+        accountStatus: users.accountStatus,
+        renewalDate: users.renewalDate,
+        paymentFinalAmount: users.paymentFinalAmount,
+        transactionCount: sql<number>`cast(count(${transactions.id}) as integer)`,
+        totalSpentFromLogs: sql<string>`coalesce(sum(cast(${transactions.finalAmount} as numeric)), 0)`,
+      })
+      .from(users)
+      .leftJoin(transactions, eq(users.id, transactions.userId))
+      .groupBy(
+        users.id, 
+        users.email, 
+        users.planType, 
+        users.subscriptionDuration, 
+        users.accountStatus, 
+        users.renewalDate, 
+        users.paymentFinalAmount
+      );
+
+    const summary = rawSummary.map(row => {
+      let spent = Number(row.totalSpentFromLogs);
+      let count = row.transactionCount;
+
+      // Ensure active users show at least one transaction using the same logic as AdminDashboard.tsx
+      if (count === 0 && (row.accountStatus === "active" || row.renewalDate)) {
+        if (row.paymentFinalAmount) {
+          spent = Number(row.paymentFinalAmount);
+        } else {
+          const plan = (row.planType as string) || 'basic';
+          const duration = (row.subscriptionDuration as string) || 'monthly';
+          const base = PLAN_PRICING[plan]?.[duration] || 0;
+          // Subtotal + 18% GST
+          spent = Number((base * 1.18).toFixed(2));
+        }
+        count = 1;
+      }
+
+      return {
+        id: row.id,
+        email: row.email,
+        planType: row.planType,
+        transactionCount: count,
+        totalSpent: spent.toString(),
+      };
+    });
+
+    res.json(summary);
+  } catch (error) {
+    console.error("Summary fetch error:", error);
+    res.status(500).json({ message: "Failed to fetch transaction summary" });
+  }
+});
+
+const PLAN_PRICING: any = {
+  basic: { monthly: 1499, "6months": 7999, "1year": 14999 },
+  pro: { monthly: 4999, "6months": 26999, "1year": 49999 },
+};
+
+router.get("/transactions/:userId", authenticate, requireAdmin, async (req, res) => {
+  try {
+    const userId = Number(req.params.userId);
+    
+    // 1. Fetch real transactions
+    const logs = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.userId, userId))
+      .orderBy(desc(transactions.createdAt));
+
+    // 2. Map fields to match requirement
+    let userTransactions = logs.map(tx => ({
+      ...tx,
+      planName: tx.planType,
+    }));
+
+    // 3. Fallback logic exactly matching AdminDashboard.tsx
+    if (userTransactions.length === 0) {
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (user && (user.accountStatus === "active" || user.renewalDate)) {
+        const plan = (user.planType as string) || 'basic';
+        const duration = (user.subscriptionDuration as string) || 'monthly';
+        const fallbackBase = PLAN_PRICING[plan]?.[duration] || 0;
+        
+        const baseAmount = user.paymentBaseAmount || String(fallbackBase);
+        const discountAmount = user.paymentDiscountAmount || '0';
+        const gstAmount = user.paymentGstAmount || String(Number((Number(baseAmount) - Number(discountAmount)) * 0.18).toFixed(2));
+        const finalAmount = user.paymentFinalAmount || String(Number(baseAmount) - Number(discountAmount) + Number(gstAmount));
+
+        userTransactions = [{
+          id: `legacy-${user.id}` as any,
+          userId: user.id,
+          planType: plan,
+          planName: plan,
+          period: duration,
+          baseAmount,
+          discountAmount,
+          gstAmount,
+          finalAmount,
+          razorpayOrderId: 'N/A',
+          razorpayPaymentId: 'N/A',
+          couponUsed: user.couponCode || null,
+          status: 'completed',
+          createdAt: user.renewalDate || user.createdAt,
+        } as any];
+      }
+    }
+
+    res.json(userTransactions);
+  } catch (error) {
+    console.error("User transactions fetch error:", error);
+    res.status(500).json({ message: "Failed to fetch user transactions" });
+  }
+});
 
 router.put(
   "/update-pricing",

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuthContext } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import { api } from "../api/client";
 
 const problems = [
   {
@@ -140,16 +141,12 @@ const stats = [
   { label: "Not", value: "Generic ERP" },
 ];
 
-const pricingPlans = [
+const defaultPricingPlans = [
   {
     name: "Basic",
+    planType: "basic",
     description: "Perfect for small paint factories getting started",
     highlight: false,
-    pricingOptions: [
-      { label: "Monthly", period: "/month", price: "Rs. 1,499" },
-      { label: "6 Months", period: "/6month", price: "Rs. 7,999" },
-      { label: "1 Year", period: "/1Year", price: "Rs. 14,999" },
-    ],
     features: [
       "Single User only",
       "Quotation Management",
@@ -165,13 +162,9 @@ const pricingPlans = [
   },
   {
     name: "Professional",
+    planType: "pro",
     description: "For growing paint manufacturers wanting full control",
     highlight: true,
-    pricingOptions: [
-      { label: "Monthly", period: "/month", price: "Rs. 4,999" },
-      { label: "6 Months", period: "/6month", price: "Rs. 26,999" },
-      { label: "1 Year", period: "/1Year", price: "Rs. 49,999" },
-    ],
     features: [
       "Everything in Basic +",
       "Up to 10 users",
@@ -194,6 +187,35 @@ const Landing = () => {
   const [selectedPricingPlan, setSelectedPricingPlan] = useState<
     "Basic" | "Professional"
   >("Basic");
+  const [dbPricing, setDbPricing] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchPricing = async () => {
+      try {
+        const { data } = await api.get("pricing");
+        setDbPricing(data);
+      } catch (err) {
+        console.error("Failed to load pricing", err);
+      }
+    };
+    fetchPricing();
+  }, []);
+
+  const getPricingPlans = () => {
+    return defaultPricingPlans.map(plan => {
+      const dbPlan = dbPricing?.[plan.planType];
+      return {
+        ...plan,
+        pricingOptions: [
+          { label: "Monthly", period: "/month", price: `Rs. ${dbPlan?.monthly?.toLocaleString() || "..."}` },
+          { label: "6 Months", period: "/6month", price: `Rs. ${dbPlan?.["6months"]?.toLocaleString() || "..."}` },
+          { label: "1 Year", period: "/1Year", price: `Rs. ${dbPlan?.["1year"]?.toLocaleString() || "..."}` },
+        ]
+      };
+    });
+  };
+
+  const pricingPlans = getPricingPlans();
 
   // Handle Buy Now button click - check auth status and redirect appropriately
   const handleBuyNow = (planName: string, periodLabel: string) => {

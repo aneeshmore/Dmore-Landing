@@ -201,6 +201,124 @@
   border-bottom: 2px solid #e2e8f0;
 }
 
+/* ===== COUPON STYLES ===== */
+.coupon-cell {
+  min-width: 180px;
+}
+
+.coupon-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.coupon-input-wrapper {
+  flex: 2;
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #dbe2ea;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.discount-input-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #dbe2ea;
+  border-radius: 8px;
+  padding: 0 8px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.discount-input-wrapper:focus-within {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.discount-symbol {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+  margin-right: 2px;
+}
+
+.discount-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 8px 0;
+  font-weight: 700;
+  font-size: 13px;
+  color: #0f172a;
+  outline: none;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.discount-input::-webkit-outer-spin-button,
+.discount-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.coupon-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 8px 10px;
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: 700;
+  font-size: 13px;
+  color: #0f172a;
+  outline: none;
+}
+
+.coupon-actions-inline {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+  background: #f8fafc;
+  border-left: 1px solid #dbe2ea;
+}
+
+.btn-inline-action {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  font-size: 14px;
+  transition: transform 0.1s ease, color 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-inline-action:hover {
+  transform: scale(1.1);
+  color: #2563eb;
+}
+
+.coupon-expiry {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: right;
+  padding-right: 4px;
+}
+
+.coupon-expiry.valid {
+  color: #059669;
+}
+
+.coupon-expiry.expired {
+  color: #dc2626;
+}
+
 .pricing-fields {
   display: flex;
   flex-direction: column;

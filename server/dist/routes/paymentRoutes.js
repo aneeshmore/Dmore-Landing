@@ -318,6 +318,26 @@ router.post("/verify-payment", auth_1.authenticate, async (req, res) => {
             })
                 .where((0, drizzle_orm_1.eq)(schema_1.users.id, userId));
         }
+        // Record transaction
+        try {
+            await db_1.db.insert(schema_1.transactions).values({
+                userId,
+                planType,
+                period,
+                baseAmount: baseAmount.toFixed(2),
+                discountAmount: discountAmount.toFixed(2),
+                gstAmount: gstAmount.toFixed(2),
+                finalAmount: finalAmount.toFixed(2),
+                razorpayOrderId,
+                razorpayPaymentId,
+                couponUsed: couponApplied ? (notes.couponCode || "coloursociety") : null,
+                status: "completed",
+            });
+        }
+        catch (logErr) {
+            console.error("Failed to log transaction:", logErr);
+            // Don't fail the verification if logging fails, but it's important
+        }
         return res.json({
             success: true,
             message: "Payment verified successfully",

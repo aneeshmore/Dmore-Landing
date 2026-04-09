@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { useAuth } from "../hooks/useAuth";
 import { useToast } from "../context/ToastContext";
@@ -47,10 +48,10 @@ const AdminDashboard = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
+  const [plansList, setPlansList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Pricing Management State - Use empty strings initially for better UX
   const [pricing, setPricing] = useState({
     basic: { monthly: "" as any, "6months": "" as any, "1year": "" as any },
     pro: { monthly: "" as any, "6months": "" as any, "1year": "" as any }
@@ -144,8 +145,18 @@ const AdminDashboard = () => {
     }
   };
 
+  const fetchPlans = async () => {
+    try {
+      const { data } = await api.get("admin/plans");
+      setPlansList(data);
+    } catch (err) {
+      console.error("Failed to fetch plans", err);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
+    fetchPlans();
     fetchPricing();
   }, []);
 
@@ -221,21 +232,31 @@ const AdminDashboard = () => {
       };
 
       if (editForm.paymentStatus === "completed") {
-        // If switching to completed or staying completed, ensure we have a validity date.
-        // If it was already completed (has renewalDate), we might want to keep it or extend it? 
-        // Simple logic: if setting to completed, set to now + duration.
-        // Or if we want to preserve existing date if it exists? 
-        // Let's stick to "Marking as Completed resets/sets the date" for manual admin action.
         const now = new Date();
         if (editForm.subscriptionDuration === "monthly") now.setMonth(now.getMonth() + 1);
         else if (editForm.subscriptionDuration === "6months") now.setMonth(now.getMonth() + 6);
         else if (editForm.subscriptionDuration === "1year") now.setFullYear(now.getFullYear() + 1);
+        
         payload.renewalDate = now.toISOString();
         payload.accountStatus = "active";
+
+        // Also save the calculated payment details for consistency in history
+        const planKey = editForm.planType as "basic" | "pro";
+        const durationKey = editForm.subscriptionDuration as "monthly" | "6months" | "1year";
+        const basePrice = PLAN_PRICING[planKey][durationKey];
+        const gst = Number((basePrice * 0.18).toFixed(2));
+        
+        payload.paymentBaseAmount = String(basePrice);
+        payload.paymentDiscountAmount = "0"; // Manual activation usually has no discount recorded here
+        payload.paymentGstAmount = String(gst);
+        payload.paymentFinalAmount = String(basePrice + gst);
       } else {
-        // If setting to pending, clear the renewal date
         payload.renewalDate = null;
         payload.accountStatus = "pending_payment";
+        payload.paymentBaseAmount = null;
+        payload.paymentDiscountAmount = null;
+        payload.paymentGstAmount = null;
+        payload.paymentFinalAmount = null;
       }
 
       await api.put(`/users/${editUserId}`, payload);
@@ -361,6 +382,98 @@ const AdminDashboard = () => {
         "error",
       );
     }
+  };
+
+  const handleGenerateCoupon = async (userId: number) => {
+    const colors = ["Red", "Blue", "Green", "Gold", "Pink", "Grey", "Cyan", "Ruby"];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const number = Math.floor(100 + Math.random() * 900);
+    const code = `${color}@${number}`;
+    const now = new Date().toISOString();
+
+    setUsers(currentUsers => currentUsers.map(u => 
+      u.id === userId ? { ...u, couponCode: code, couponCreatedAt: now } : u
+    ));
+
+    try {
+      await api.put(`/users/${userId}`, { 
+        couponCode: code, 
+        couponCreatedAt: now 
+      });
+      showToast("Coupon code generated successfully", "success");
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || "Failed to generate coupon", "error");
+      fetchUsers();
+    }
+  };
+
+  const handleUpdateCoupon = async (userId: number, code: string) => {
+    const now = new Date().toISOString();
+    setUsers(currentUsers => currentUsers.map(u => 
+      u.id === userId ? { ...u, couponCode: code, couponCreatedAt: now } : u
+    ));
+
+    try {
+      await api.put(`/users/${userId}`, { 
+        couponCode: code,
+        couponCreatedAt: now
+      });
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || "Failed to update coupon", "error");
+      fetchUsers();
+    }
+  };
+
+  const handleUpdateDiscount = async (userId: number, amount: string) => {
+    setUsers(currentUsers => currentUsers.map(u => 
+      u.id === userId ? { ...u, couponDiscountAmount: amount } : u
+    ));
+
+    try {
+      await api.put(`/users/${userId}`, { 
+        couponDiscountAmount: amount
+      });
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || "Failed to update discount", "error");
+      fetchUsers();
+    }
+  };
+
+  const handleCopyCoupon = (code: string) => {
+    navigator.clipboard.writeText(code);
+    showToast("Coupon code copied to clipboard", "info");
+  };
+
+  const handleUpdatePlan = async (id: number, field: string, value: string) => {
+    setPlansList(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+    
+    try {
+      const plan = plansList.find(p => p.id === id);
+      const payload = {
+        monthlyPrice: field === "monthlyPrice" ? value : plan.monthlyPrice,
+        sixMonthPrice: field === "sixMonthPrice" ? value : plan.sixMonthPrice,
+        yearlyPrice: field === "yearlyPrice" ? value : plan.yearlyPrice,
+      };
+      await api.put(`/admin/plans/${id}`, payload);
+      showToast("Plan pricing updated", "success");
+    } catch (err) {
+      showToast("Failed to update plan pricing", "error");
+      fetchPlans();
+    }
+  };
+
+  const getCouponStatus = (createdAt?: string) => {
+    if (!createdAt) return null;
+    const createdDate = new Date(createdAt);
+    const expiryDate = new Date(createdDate);
+    expiryDate.setDate(createdDate.getDate() + 30);
+    
+    const now = new Date();
+    const diffTime = expiryDate.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays <= 0) return { status: "expired", text: "Expired" };
+    return { status: "valid", text: `Expires in ${diffDays}d` };
   };
 
   return (
@@ -509,6 +622,10 @@ const AdminDashboard = () => {
             <h2>Registered Users</h2>
 
             <div className="header-actions">
+              <Link to="/admin/transactions" className="btn-action history-btn">
+                📜 Transaction History
+              </Link>
+
               <button
                 className="btn-action btn-export"
                 onClick={() => setIsAddTenantModalOpen(true)}
@@ -552,6 +669,7 @@ const AdminDashboard = () => {
                     <th>User Status</th>
                     <th>Payment Status</th>
                     <th>Payment Details</th>
+                    <th>Coupon</th>
                     <th>Created</th>
                     <th>Actions</th>
                   </tr>
@@ -560,7 +678,7 @@ const AdminDashboard = () => {
                 <tbody>
                   {users.length === 0 && (
                     <tr>
-                      <td colSpan={14}>
+                      <td colSpan={15}>
                         <div className="empty-state">
                           <p>No users found.</p>
                         </div>
@@ -733,6 +851,64 @@ const AdminDashboard = () => {
                               <span>Final</span>
                               <span>{formatCurrency(finalAmount)}</span>
                             </div>
+                          </div>
+                        </td>
+
+                        <td>
+                          <div className="coupon-cell">
+                            <div className="coupon-row">
+                              <div className="coupon-input-wrapper">
+                                <input
+                                  type="text"
+                                  className="coupon-input"
+                                  value={entry.couponCode || ""}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setUsers(prev => prev.map(u => u.id === entry.id ? { ...u, couponCode: val } : u));
+                                  }}
+                                  onBlur={(e) => handleUpdateCoupon(entry.id, e.target.value)}
+                                  placeholder="Code"
+                                  maxLength={10}
+                                />
+                                <div className="coupon-actions-inline">
+                                  <button
+                                    className="btn-inline-action"
+                                    onClick={() => handleGenerateCoupon(entry.id)}
+                                    title="Generate Code"
+                                  >
+                                    ✨
+                                  </button>
+                                  {entry.couponCode && (
+                                    <button
+                                      className="btn-inline-action"
+                                      onClick={() => handleCopyCoupon(entry.couponCode!)}
+                                      title="Copy Code"
+                                    >
+                                      📋
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="discount-input-wrapper">
+                                <span className="discount-symbol">₹</span>
+                                <input
+                                  type="number"
+                                  className="discount-input"
+                                  value={entry.couponDiscountAmount || ""}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setUsers(prev => prev.map(u => u.id === entry.id ? { ...u, couponDiscountAmount: val } : u));
+                                  }}
+                                  onBlur={(e) => handleUpdateDiscount(entry.id, e.target.value)}
+                                  placeholder="0"
+                                />
+                              </div>
+                            </div>
+                            {entry.couponCode && (
+                              <div className={`coupon-expiry ${getCouponStatus(entry.couponCreatedAt)?.status}`}>
+                                {getCouponStatus(entry.couponCreatedAt)?.text}
+                              </div>
+                            )}
                           </div>
                         </td>
 
@@ -1167,6 +1343,85 @@ const AdminDashboard = () => {
           </div>
         )
       }
+
+      <div className="admin-content" style={{ marginTop: "2rem" }}>
+        <div className="admin-card">
+          <div className="admin-card-header">
+            <div className="admin-card-header-main">
+              <h2>Pricing Settings</h2>
+              <p>Update subscription plan prices dynamically</p>
+            </div>
+          </div>
+          <div className="admin-table-wrapper">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Plan Type</th>
+                  <th>Monthly (₹)</th>
+                  <th>6 Months (₹)</th>
+                  <th>1 Year (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {plansList.map((plan) => (
+                  <tr key={plan.id}>
+                    <td>
+                      <span className={`role-badge ${plan.planType}`}>
+                        {plan.planType.toUpperCase()}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="discount-input-wrapper">
+                        <span className="discount-symbol">₹</span>
+                        <input
+                          type="number"
+                          className="discount-input"
+                          value={plan.monthlyPrice}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setPlansList(prev => prev.map(p => p.id === plan.id ? { ...p, monthlyPrice: val } : p));
+                          }}
+                          onBlur={(e) => handleUpdatePlan(plan.id, "monthlyPrice", e.target.value)}
+                        />
+                      </div>
+                    </td>
+                    <td>
+                      <div className="discount-input-wrapper">
+                        <span className="discount-symbol">₹</span>
+                        <input
+                          type="number"
+                          className="discount-input"
+                          value={plan.sixMonthPrice}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setPlansList(prev => prev.map(p => p.id === plan.id ? { ...p, sixMonthPrice: val } : p));
+                          }}
+                          onBlur={(e) => handleUpdatePlan(plan.id, "sixMonthPrice", e.target.value)}
+                        />
+                      </div>
+                    </td>
+                    <td>
+                      <div className="discount-input-wrapper">
+                        <span className="discount-symbol">₹</span>
+                        <input
+                          type="number"
+                          className="discount-input"
+                          value={plan.yearlyPrice}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setPlansList(prev => prev.map(p => p.id === plan.id ? { ...p, yearlyPrice: val } : p));
+                          }}
+                          onBlur={(e) => handleUpdatePlan(plan.id, "yearlyPrice", e.target.value)}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

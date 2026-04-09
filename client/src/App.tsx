@@ -1,4 +1,4 @@
-﻿import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import "./App.css";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -11,6 +11,7 @@ import Careers from "./pages/Careers";
 import Payment from "./pages/Payment";
 import { useAuthContext } from "./context/AuthContext";
 import RegisteredUser from "./pages/RegisteredUser";
+import TransactionHistory from "./pages/TransactionHistory";
 
 function App() {
   const { token, user, loading } = useAuthContext();
@@ -56,6 +57,15 @@ function App() {
             element={
               <ProtectedRoute role="admin">
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/transactions"
+            element={
+              <ProtectedRoute role="admin">
+                <TransactionHistory />
               </ProtectedRoute>
             }
           />

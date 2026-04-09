@@ -33,4 +33,7 @@ export interface User {
   paymentFinalAmount?: string | number | null;
   paymentStatus?: "pending" | "completed";
   renewalDate?: string;
+  couponCode?: string;
+  couponDiscountAmount?: string;
+  couponCreatedAt?: string;
 }
