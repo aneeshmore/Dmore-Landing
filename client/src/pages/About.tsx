@@ -6,33 +6,6 @@ const About = () => {
     { number: "15M+", label: "Working Capital Saved" },
   ];
 
-  const team = [
-    {
-      name: "Rajesh Kumar",
-      role: "Founder & CEO",
-      background: "15+ years in paint manufacturing",
-      emoji: "👔",
-    },
-    {
-      name: "Priya Sharma",
-      role: "CTO",
-      background: "10+ years in SaaS technology",
-      emoji: "💻",
-    },
-    {
-      name: "Vikram Patel",
-      role: "Head of Product",
-      background: "Paint factory operations expert",
-      emoji: "🎯",
-    },
-    {
-      name: "Aneesha Singh",
-      role: "VP Customer Success",
-      background: "Paint industry consultant",
-      emoji: "🤝",
-    },
-  ];
-
   return (
     <div
       className="content-page"
