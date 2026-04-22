@@ -229,9 +229,9 @@ export const updateUser = async (id: number, data: UpdateUserInput) => {
     .where(eq(users.id, id))
     .returning(listUserSelection);
 
-  // Trigger ERP Webhook or Tenant Registration if plan or domain is updated
-  if ((data.planType || data.domain) && user.domain && user.planType) {
-    triggerERPWebhook(user.domain, user.planType).catch((err) =>
+  // Trigger ERP Webhook or Tenant Registration if plan, domain, or active status is updated
+  if ((data.planType || data.domain || data.isActive !== undefined) && user.domain && user.planType) {
+    triggerERPWebhook(user.domain, user.planType, user.isActive ?? true).catch((err) =>
       console.error("Failed to trigger ERP webhook:", err),
     );
   }
@@ -254,7 +254,7 @@ export const updateUser = async (id: number, data: UpdateUserInput) => {
   return user;
 };
 
-const triggerERPWebhook = async (subdomain: string, planType: string) => {
+const triggerERPWebhook = async (subdomain: string, planType: string, isActive: boolean = true) => {
   if (!config.erpApiUrl || !config.webhookSecret) {
     console.warn("ERP Webhook skipped: Missing configuration");
     return;
@@ -269,7 +269,7 @@ const triggerERPWebhook = async (subdomain: string, planType: string) => {
           "Content-Type": "application/json",
           secret: config.webhookSecret,
         },
-        body: JSON.stringify({ subdomain, planType }),
+        body: JSON.stringify({ subdomain, planType, isActive }),
       },
     );
 

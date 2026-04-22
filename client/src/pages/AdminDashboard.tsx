@@ -236,7 +236,7 @@ const AdminDashboard = () => {
         if (editForm.subscriptionDuration === "monthly") now.setMonth(now.getMonth() + 1);
         else if (editForm.subscriptionDuration === "6months") now.setMonth(now.getMonth() + 6);
         else if (editForm.subscriptionDuration === "1year") now.setFullYear(now.getFullYear() + 1);
-        
+
         payload.renewalDate = now.toISOString();
         payload.accountStatus = "active";
 
@@ -245,7 +245,7 @@ const AdminDashboard = () => {
         const durationKey = editForm.subscriptionDuration as "monthly" | "6months" | "1year";
         const basePrice = PLAN_PRICING[planKey][durationKey];
         const gst = Number((basePrice * 0.18).toFixed(2));
-        
+
         payload.paymentBaseAmount = String(basePrice);
         payload.paymentDiscountAmount = "0"; // Manual activation usually has no discount recorded here
         payload.paymentGstAmount = String(gst);
@@ -391,14 +391,14 @@ const AdminDashboard = () => {
     const code = `${color}@${number}`;
     const now = new Date().toISOString();
 
-    setUsers(currentUsers => currentUsers.map(u => 
+    setUsers(currentUsers => currentUsers.map(u =>
       u.id === userId ? { ...u, couponCode: code, couponCreatedAt: now } : u
     ));
 
     try {
-      await api.put(`/users/${userId}`, { 
-        couponCode: code, 
-        couponCreatedAt: now 
+      await api.put(`/users/${userId}`, {
+        couponCode: code,
+        couponCreatedAt: now
       });
       showToast("Coupon code generated successfully", "success");
     } catch (err: any) {
@@ -409,12 +409,12 @@ const AdminDashboard = () => {
 
   const handleUpdateCoupon = async (userId: number, code: string) => {
     const now = new Date().toISOString();
-    setUsers(currentUsers => currentUsers.map(u => 
+    setUsers(currentUsers => currentUsers.map(u =>
       u.id === userId ? { ...u, couponCode: code, couponCreatedAt: now } : u
     ));
 
     try {
-      await api.put(`/users/${userId}`, { 
+      await api.put(`/users/${userId}`, {
         couponCode: code,
         couponCreatedAt: now
       });
@@ -425,12 +425,12 @@ const AdminDashboard = () => {
   };
 
   const handleUpdateDiscount = async (userId: number, amount: string) => {
-    setUsers(currentUsers => currentUsers.map(u => 
+    setUsers(currentUsers => currentUsers.map(u =>
       u.id === userId ? { ...u, couponDiscountAmount: amount } : u
     ));
 
     try {
-      await api.put(`/users/${userId}`, { 
+      await api.put(`/users/${userId}`, {
         couponDiscountAmount: amount
       });
     } catch (err: any) {
@@ -446,7 +446,7 @@ const AdminDashboard = () => {
 
   const handleUpdatePlan = async (id: number, field: string, value: string) => {
     setPlansList(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
-    
+
     try {
       const plan = plansList.find(p => p.id === id);
       const payload = {
@@ -467,7 +467,7 @@ const AdminDashboard = () => {
     const createdDate = new Date(createdAt);
     const expiryDate = new Date(createdDate);
     expiryDate.setDate(createdDate.getDate() + 30);
-    
+
     const now = new Date();
     const diffTime = expiryDate.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
