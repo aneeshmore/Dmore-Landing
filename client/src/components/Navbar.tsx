@@ -157,7 +157,7 @@ const Navbar = () => {
         </button>
 
         <a
-          href="https://github.com/aneeshmore/Dmore-Landing/releases/download/BASIC-V1/DMOR.Paints.ERP.Setup.1.0.0.exe"
+          href="https://github.com/aneeshmore/Dmore-Landing/releases/download/BASIC-V1/Morex.Technologies.ERP.System.Setup.1.0.0.exe"
           target="_blank"
           rel="noopener noreferrer"
           className="btn"
