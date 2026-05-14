@@ -42,6 +42,10 @@ const userSchema = z.object({
   couponCode: z.string().optional(),
   couponDiscountAmount: z.string().optional(),
   couponCreatedAt: z.string().nullable().optional(),
+  paymentBaseAmount: z.string().nullable().optional(),
+  paymentDiscountAmount: z.string().nullable().optional(),
+  paymentGstAmount: z.string().nullable().optional(),
+  paymentFinalAmount: z.string().nullable().optional(),
 });
 
 // For updates, all fields optional

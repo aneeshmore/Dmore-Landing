@@ -32,6 +32,8 @@ export interface User {
   paymentGstAmount?: string | number | null;
   paymentFinalAmount?: string | number | null;
   paymentStatus?: "pending" | "completed";
+  paymentDate?: string | null;
+  transactionId?: string | null;
   renewalDate?: string;
   couponCode?: string;
   couponDiscountAmount?: string;

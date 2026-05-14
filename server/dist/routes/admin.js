@@ -75,79 +75,84 @@ const isMissingPaymentColumnError = (error) => {
 };
 router.get("/registered-users", auth_1.authenticate, auth_1.requireAdmin, async (req, res) => {
     try {
-        let registeredUsers = [];
-        try {
-            registeredUsers = await db_1.db
-                .select({
-                id: schema_1.users.id,
-                name: schema_1.users.name,
-                email: schema_1.users.email,
-                mobile: schema_1.users.mobile,
-                companyName: schema_1.users.companyName,
-                companyAddress: schema_1.users.companyAddress,
-                role: schema_1.users.role,
-                domain: schema_1.users.domain,
-                databaseUrl: schema_1.users.databaseUrl,
-                numberOfUsers: schema_1.users.numberOfUsers,
-                planType: schema_1.users.planType,
-                subscriptionDuration: schema_1.users.subscriptionDuration,
-                accountStatus: schema_1.users.accountStatus,
-                paymentBaseAmount: schema_1.users.paymentBaseAmount,
-                paymentDiscountAmount: schema_1.users.paymentDiscountAmount,
-                paymentGstAmount: schema_1.users.paymentGstAmount,
-                paymentFinalAmount: schema_1.users.paymentFinalAmount,
-                renewalDate: schema_1.users.renewalDate,
-                isActive: schema_1.users.isActive,
-                couponCode: schema_1.users.couponCode,
-                couponDiscountAmount: schema_1.users.couponDiscountAmount,
-                couponCreatedAt: schema_1.users.couponCreatedAt,
-                createdAt: schema_1.users.createdAt,
-            })
-                .from(schema_1.users)
-                .orderBy((0, drizzle_orm_1.desc)(schema_1.users.createdAt));
-        }
-        catch (error) {
-            if (!isMissingPaymentColumnError(error)) {
-                throw error;
+        const registeredUsers = await db_1.db
+            .select()
+            .from(schema_1.users)
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.users.createdAt));
+        // Fetch latest transaction for each user to get the permanent snapshot
+        const latestTransactions = await db_1.db
+            .select()
+            .from(schema_1.transactions)
+            .orderBy((0, drizzle_orm_1.desc)(schema_1.transactions.createdAt));
+        const txMap = {};
+        latestTransactions.forEach(tx => {
+            const uId = Number(tx.userId);
+            if (!txMap[uId]) {
+                txMap[uId] = tx;
             }
-            const fallbackUsers = await db_1.db
-                .select({
-                id: schema_1.users.id,
-                name: schema_1.users.name,
-                email: schema_1.users.email,
-                mobile: schema_1.users.mobile,
-                companyName: schema_1.users.companyName,
-                companyAddress: schema_1.users.companyAddress,
-                role: schema_1.users.role,
-                domain: schema_1.users.domain,
-                databaseUrl: schema_1.users.databaseUrl,
-                numberOfUsers: schema_1.users.numberOfUsers,
-                planType: schema_1.users.planType,
-                subscriptionDuration: schema_1.users.subscriptionDuration,
-                accountStatus: schema_1.users.accountStatus,
-                renewalDate: schema_1.users.renewalDate,
-                isActive: schema_1.users.isActive,
-                couponCode: schema_1.users.couponCode,
-                couponDiscountAmount: schema_1.users.couponDiscountAmount,
-                couponCreatedAt: schema_1.users.couponCreatedAt,
-                createdAt: schema_1.users.createdAt,
-            })
-                .from(schema_1.users)
-                .orderBy((0, drizzle_orm_1.desc)(schema_1.users.createdAt));
-            registeredUsers = fallbackUsers.map((entry) => ({
-                ...entry,
-                paymentBaseAmount: null,
-                paymentDiscountAmount: null,
-                paymentGstAmount: null,
-                paymentFinalAmount: null,
-            }));
-        }
-        res.json({
-            users: registeredUsers.map((entry) => ({
-                ...entry,
-                paymentStatus: entry.renewalDate ? "completed" : "pending",
-            })),
         });
+        const allPlans = await db_1.db.select().from(schema_1.plans);
+        const planMap = {};
+        allPlans.forEach(p => {
+            planMap[p.planType] = {
+                monthly: Number(p.monthlyPrice),
+                "6months": Number(p.sixMonthPrice),
+                "1year": Number(p.yearlyPrice),
+            };
+        });
+        const responseUsers = registeredUsers.map((user) => {
+            const userId = Number(user.id);
+            const latestTx = txMap[userId];
+            // 1. Determine Expiry Status
+            const now = new Date();
+            const renewalDate = user.renewalDate ? new Date(user.renewalDate) : null;
+            const isExpired = renewalDate ? renewalDate < now : false;
+            // 2. Determine payment status (Strict source of truth)
+            let paymentStatus = "pending";
+            if (latestTx && latestTx.status === "completed") {
+                paymentStatus = "completed";
+            }
+            else if (user.paymentFinalAmount && user.accountStatus !== "pending_payment") {
+                // Manual snapshot exists and not in a pending state
+                paymentStatus = "completed";
+            }
+            else if (user.accountStatus === "disabled") {
+                paymentStatus = "failed";
+            }
+            // 3. Derived User Status (Account Status + Expiry)
+            let displayAccountStatus = user.accountStatus;
+            if (isExpired && user.accountStatus !== "disabled") {
+                displayAccountStatus = "expired";
+            }
+            // 4. Authoritative Active State (The Switch)
+            // Must have completed payment AND not be expired AND not be manually disabled
+            const isActive = paymentStatus === "completed" && !isExpired && user.accountStatus !== "disabled";
+            // authoritative snapshot data
+            let baseAmount = latestTx ? latestTx.baseAmount : user.paymentBaseAmount;
+            let discountAmount = latestTx ? latestTx.discountAmount : user.paymentDiscountAmount;
+            let gstAmount = latestTx ? latestTx.gstAmount : user.paymentGstAmount;
+            let finalAmount = latestTx ? latestTx.finalAmount : user.paymentFinalAmount;
+            const paymentDate = latestTx
+                ? latestTx.createdAt
+                : (user.renewalDate || user.createdAt);
+            const transactionId = latestTx
+                ? (latestTx.razorpayPaymentId || `TXN-${latestTx.id}`)
+                : (paymentStatus === "completed" ? (user.paymentFinalAmount ? "MANUAL-SNAP" : "VERIFIED") : "N/A");
+            return {
+                ...user,
+                paymentStatus,
+                accountStatus: displayAccountStatus,
+                isActive,
+                // ONLY return values if they exist in DB snapshots. NEVER calculate from current plans.
+                paymentBaseAmount: baseAmount || (paymentStatus === "completed" ? "N/A" : null),
+                paymentDiscountAmount: discountAmount || (paymentStatus === "completed" ? "0.00" : null),
+                paymentGstAmount: gstAmount || (paymentStatus === "completed" ? "N/A" : null),
+                paymentFinalAmount: finalAmount || (paymentStatus === "completed" ? "N/A" : null),
+                paymentDate,
+                transactionId,
+            };
+        });
+        res.json({ users: responseUsers });
     }
     catch (error) {
         console.error("Error fetching users:", error);
@@ -199,12 +204,22 @@ router.get("/transaction-summary", auth_1.authenticate, auth_1.requireAdmin, asy
             accountStatus: schema_1.users.accountStatus,
             renewalDate: schema_1.users.renewalDate,
             paymentFinalAmount: schema_1.users.paymentFinalAmount,
+            couponDiscountAmount: schema_1.users.couponDiscountAmount,
             transactionCount: (0, drizzle_orm_1.sql) `cast(count(${schema_1.transactions.id}) as integer)`,
             totalSpentFromLogs: (0, drizzle_orm_1.sql) `coalesce(sum(cast(${schema_1.transactions.finalAmount} as numeric)), 0)`,
         })
             .from(schema_1.users)
             .leftJoin(schema_1.transactions, (0, drizzle_orm_1.eq)(schema_1.users.id, schema_1.transactions.userId))
             .groupBy(schema_1.users.id, schema_1.users.email, schema_1.users.planType, schema_1.users.subscriptionDuration, schema_1.users.accountStatus, schema_1.users.renewalDate, schema_1.users.paymentFinalAmount);
+        const allPlans = await db_1.db.select().from(schema_1.plans);
+        const planMap = {};
+        allPlans.forEach(p => {
+            planMap[p.planType] = {
+                monthly: Number(p.monthlyPrice),
+                "6months": Number(p.sixMonthPrice),
+                "1year": Number(p.yearlyPrice),
+            };
+        });
         const summary = rawSummary.map(row => {
             let spent = Number(row.totalSpentFromLogs);
             let count = row.transactionCount;
@@ -216,9 +231,11 @@ router.get("/transaction-summary", auth_1.authenticate, auth_1.requireAdmin, asy
                 else {
                     const plan = row.planType || 'basic';
                     const duration = row.subscriptionDuration || 'monthly';
-                    const base = PLAN_PRICING[plan]?.[duration] || 0;
+                    const base = planMap[plan]?.[duration] || 0;
+                    const discount = Number(row.couponDiscountAmount) || 0;
+                    const subtotal = Math.max(base - discount, 0);
                     // Subtotal + 18% GST
-                    spent = Number((base * 1.18).toFixed(2));
+                    spent = Number((subtotal * 1.18).toFixed(2));
                 }
                 count = 1;
             }

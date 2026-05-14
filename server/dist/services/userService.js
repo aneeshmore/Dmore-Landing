@@ -190,9 +190,9 @@ const updateUser = async (id, data) => {
         .set(updatePayload)
         .where((0, drizzle_orm_1.eq)(schema_1.users.id, id))
         .returning(listUserSelection);
-    // Trigger ERP Webhook or Tenant Registration if plan or domain is updated
-    if ((data.planType || data.domain) && user.domain && user.planType) {
-        triggerERPWebhook(user.domain, user.planType).catch((err) => console.error("Failed to trigger ERP webhook:", err));
+    // Trigger ERP Webhook or Tenant Registration if plan, domain, or active status is updated
+    if ((data.planType || data.domain || data.isActive !== undefined) && user.domain && user.planType) {
+        triggerERPWebhook(user.domain, user.planType, user.isActive ?? true).catch((err) => console.error("Failed to trigger ERP webhook:", err));
     }
     // Handle Domain or Database URL update
     if ((data.domain || data.databaseUrl) && oldUser) {
@@ -208,7 +208,7 @@ const updateUser = async (id, data) => {
     return user;
 };
 exports.updateUser = updateUser;
-const triggerERPWebhook = async (subdomain, planType) => {
+const triggerERPWebhook = async (subdomain, planType, isActive = true) => {
     if (!env_1.config.erpApiUrl || !env_1.config.webhookSecret) {
         console.warn("ERP Webhook skipped: Missing configuration");
         return;
@@ -220,7 +220,7 @@ const triggerERPWebhook = async (subdomain, planType) => {
                 "Content-Type": "application/json",
                 secret: env_1.config.webhookSecret,
             },
-            body: JSON.stringify({ subdomain, planType }),
+            body: JSON.stringify({ subdomain, planType, isActive }),
         });
         if (!response.ok) {
             console.error(`ERP Webhook failed with status: ${response.status}`);

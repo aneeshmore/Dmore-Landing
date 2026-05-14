@@ -18,6 +18,8 @@ interface EditFormState {
   planType: string;
   subscriptionDuration: string;
   paymentStatus: "pending" | "completed";
+  customBaseAmount: string;
+  customFinalAmount: string;
 }
 
 const PLAN_LABELS = {
@@ -31,18 +33,7 @@ const DURATION_LABELS = {
   "1year": "Yearly",
 } as const;
 
-const PLAN_PRICING = {
-  basic: {
-    monthly: 1499,
-    "6months": 7999,
-    "1year": 14999,
-  },
-  pro: {
-    monthly: 4999,
-    "6months": 26999,
-    "1year": 49999,
-  },
-} as const;
+// Removed static PLAN_PRICING - now using database-driven pricing via fetchPricing()
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -73,6 +64,8 @@ const AdminDashboard = () => {
     planType: "basic",
     subscriptionDuration: "monthly",
     paymentStatus: "pending",
+    customBaseAmount: "",
+    customFinalAmount: "",
   });
 
   const [isAddTenantModalOpen, setIsAddTenantModalOpen] = useState(false);
@@ -196,6 +189,8 @@ const AdminDashboard = () => {
       planType: entry.planType || "basic",
       subscriptionDuration: entry.subscriptionDuration || "monthly",
       paymentStatus: entry.renewalDate ? "completed" : "pending",
+      customBaseAmount: entry.paymentBaseAmount ? String(entry.paymentBaseAmount) : "",
+      customFinalAmount: entry.paymentFinalAmount ? String(entry.paymentFinalAmount) : "",
     });
     setIsEditModalOpen(true);
   };
@@ -240,16 +235,20 @@ const AdminDashboard = () => {
         payload.renewalDate = now.toISOString();
         payload.accountStatus = "active";
 
-        // Also save the calculated payment details for consistency in history
+        // Use custom overrides if provided, otherwise real-time pricing from state
         const planKey = editForm.planType as "basic" | "pro";
         const durationKey = editForm.subscriptionDuration as "monthly" | "6months" | "1year";
-        const basePrice = PLAN_PRICING[planKey][durationKey];
-        const gst = Number((basePrice * 0.18).toFixed(2));
+        const dbBasePrice = pricing[planKey][durationKey] || 0;
+        
+        const finalBase = editForm.customBaseAmount || String(dbBasePrice);
+        const finalGst = editForm.customFinalAmount 
+          ? (Number(editForm.customFinalAmount) - Number(finalBase)).toFixed(2)
+          : (Number(finalBase) * 0.18).toFixed(2);
 
-        payload.paymentBaseAmount = String(basePrice);
-        payload.paymentDiscountAmount = "0"; // Manual activation usually has no discount recorded here
-        payload.paymentGstAmount = String(gst);
-        payload.paymentFinalAmount = String(basePrice + gst);
+        payload.paymentBaseAmount = finalBase;
+        payload.paymentDiscountAmount = "0"; 
+        payload.paymentGstAmount = finalGst;
+        payload.paymentFinalAmount = editForm.customFinalAmount || (Number(finalBase) * 1.18).toFixed(2);
       } else {
         payload.renewalDate = null;
         payload.accountStatus = "pending_payment";
@@ -355,24 +354,34 @@ const AdminDashboard = () => {
     return null;
   };
 
-  const formatCurrency = (value: number | null) => {
-    if (value === null) return "—";
+  const formatCurrency = (value: unknown) => {
+    if (value === null || value === undefined || value === "") return "—";
+    if (value === "N/A") return "N/A";
+    
+    const num = typeof value === "number" ? value : Number(value);
+    if (!Number.isFinite(num)) return String(value);
+
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(value);
+    }).format(num);
   };
 
   const handleToggleUserStatus = async (entry: User) => {
-    const nextStatus = entry.isActive === false ? true : false;
+    const nextIsActive = entry.isActive === false;
+    const nextAccountStatus = nextIsActive ? "active" : "disabled";
+    
     try {
-      await api.put(`/users/${entry.id}`, { isActive: nextStatus });
+      await api.put(`/users/${entry.id}`, { 
+        isActive: nextIsActive,
+        accountStatus: nextAccountStatus
+      });
       showToast(
-        nextStatus
-          ? "User activated successfully."
-          : "User deactivated successfully.",
+        nextIsActive
+          ? "User account enabled."
+          : "User account disabled.",
         "success",
       );
       fetchUsers();
@@ -687,9 +696,6 @@ const AdminDashboard = () => {
                   )}
 
                   {users.map((entry) => {
-                    const hasVerifiedPayment =
-                      entry.paymentStatus === "completed" ||
-                      Boolean(entry.renewalDate);
                     const planLabel = entry.planType
                       ? PLAN_LABELS[entry.planType]
                       : "-";
@@ -697,30 +703,10 @@ const AdminDashboard = () => {
                       ? DURATION_LABELS[entry.subscriptionDuration]
                       : "-";
 
-                    const fallbackBaseAmount =
-                      entry.planType && entry.subscriptionDuration
-                        ? PLAN_PRICING[entry.planType][entry.subscriptionDuration]
-                        : null;
-                    const baseAmount = hasVerifiedPayment
-                      ? (toNumber(entry.paymentBaseAmount) ?? fallbackBaseAmount)
-                      : null;
-                    const discountAmount = hasVerifiedPayment
-                      ? (toNumber(entry.paymentDiscountAmount) ?? 0)
-                      : null;
-                    const gstAmount = hasVerifiedPayment
-                      ? (toNumber(entry.paymentGstAmount) ??
-                        (baseAmount !== null && discountAmount !== null
-                          ? Number(((baseAmount - discountAmount) * 0.18).toFixed(2))
-                          : null))
-                      : null;
-                    const finalAmount = hasVerifiedPayment
-                      ? (toNumber(entry.paymentFinalAmount) ??
-                        (baseAmount !== null &&
-                          discountAmount !== null &&
-                          gstAmount !== null
-                          ? Number((baseAmount - discountAmount + gstAmount).toFixed(2))
-                          : null))
-                      : null;
+                    const baseAmount = entry.paymentBaseAmount;
+                    const discountAmount = entry.paymentDiscountAmount || "0";
+                    const gstAmount = entry.paymentGstAmount;
+                    const finalAmount = entry.paymentFinalAmount;
 
                     return (
                       <tr
@@ -828,30 +814,51 @@ const AdminDashboard = () => {
                         </td>
 
                         <td>
-                          <span className={`payment-status-badge ${hasVerifiedPayment ? "completed" : "pending"}`}>
-                            {hasVerifiedPayment ? "Completed" : "Pending"}
+                          <span className={`payment-status-badge ${entry.paymentStatus || "pending"}`}>
+                            {(entry.paymentStatus || "pending").charAt(0).toUpperCase() + (entry.paymentStatus || "pending").slice(1)}
                           </span>
                         </td>
 
                         <td>
-                          <div className={`payment-details-cell ${hasVerifiedPayment ? "completed" : "pending"}`}>
-                            <div className="payment-details-row">
-                              <span>Base</span>
-                              <span>{formatCurrency(baseAmount)}</span>
+                          {entry.paymentStatus === "completed" ? (
+                            <div className="payment-details-cell completed">
+                              <div className="payment-details-row">
+                                <span>Base</span>
+                                <span>{formatCurrency(baseAmount)}</span>
+                              </div>
+                              <div className="payment-details-row">
+                                <span>Discount</span>
+                                <span>{formatCurrency(discountAmount)}</span>
+                              </div>
+                              <div className="payment-details-row">
+                                <span>GST (18%)</span>
+                                <span>{formatCurrency(gstAmount)}</span>
+                              </div>
+                              <div className="payment-details-row payment-details-final">
+                                <span>Final</span>
+                                <span>{formatCurrency(finalAmount)}</span>
+                              </div>
+                              <div className="payment-meta-info">
+                                <div className="meta-row">
+                                  <span>ID:</span>
+                                  <span className="meta-value">{entry.transactionId || "N/A"}</span>
+                                </div>
+                                <div className="meta-row">
+                                  <span>Date:</span>
+                                  <span className="meta-value">
+                                    {entry.paymentDate ? new Date(entry.paymentDate).toLocaleDateString() : "N/A"}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
-                            <div className="payment-details-row">
-                              <span>Discount</span>
-                              <span>{formatCurrency(discountAmount)}</span>
+                          ) : (
+                            <div className="payment-details-cell pending">
+                              <span className="pending-notice">Waiting for Payment</span>
+                              <div className="expected-badge">
+                                Expected: {formatCurrency(entry.planType && entry.subscriptionDuration ? pricing[entry.planType][entry.subscriptionDuration] : 0)}
+                              </div>
                             </div>
-                            <div className="payment-details-row">
-                              <span>GST (18%)</span>
-                              <span>{formatCurrency(gstAmount)}</span>
-                            </div>
-                            <div className="payment-details-row payment-details-final">
-                              <span>Final</span>
-                              <span>{formatCurrency(finalAmount)}</span>
-                            </div>
-                          </div>
+                          )}
                         </td>
 
                         <td>
@@ -1108,18 +1115,31 @@ const AdminDashboard = () => {
                       />
                       Pending
                     </label>
-                    <label style={{ display: "flex", alignItems: "center", gap: "5px", cursor: "pointer" }}>
-                      <input
-                        type="radio"
-                        name="paymentStatus"
-                        value="completed"
-                        checked={editForm.paymentStatus === "completed"}
-                        onChange={() => setEditForm(prev => ({ ...prev, paymentStatus: "completed" }))}
-                      />
-                      Completed (Active)
-                    </label>
                   </div>
                 </div>
+
+                {editForm.paymentStatus === "completed" && (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginTop: "10px" }}>
+                    <div className="admin-form-group">
+                      <label>Base Amount (₹)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 1.00"
+                        value={editForm.customBaseAmount}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, customBaseAmount: e.target.value }))}
+                      />
+                    </div>
+                    <div className="admin-form-group">
+                      <label>Final Amount (₹)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 1.18"
+                        value={editForm.customFinalAmount}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, customFinalAmount: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                )}
 
                 <div className="admin-modal-actions">
                   <button

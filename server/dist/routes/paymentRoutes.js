@@ -118,10 +118,19 @@ router.post("/create-order", auth_1.authenticate, async (req, res) => {
                     : "Payment failed. Please try again.",
             });
         }
-        const amount = pricing[planType][period];
+        const allPlans = await db_1.db.select().from(schema_1.plans);
+        const pricingMap = {};
+        allPlans.forEach(p => {
+            pricingMap[p.planType] = {
+                monthly: Number(p.monthlyPrice),
+                "6months": Number(p.sixMonthPrice),
+                "1year": Number(p.yearlyPrice),
+            };
+        });
+        const amount = pricingMap[planType]?.[period];
         if (!amount) {
             return res.status(400).json({
-                message: "Invalid pricing configuration",
+                message: "Invalid pricing configuration in database",
             });
         }
         const normalizedCoupon = couponCode?.trim().toLowerCase();
@@ -238,7 +247,19 @@ router.post("/verify-payment", auth_1.authenticate, async (req, res) => {
                 message: "Invalid order metadata",
             });
         }
-        const baseAmount = pricing[planType][period];
+        // Fetch dynamic pricing from DB to verify against
+        const dbPlan = await db_1.db.query.plans.findFirst({
+            where: (0, drizzle_orm_1.eq)(schema_1.plans.planType, planType)
+        });
+        if (!dbPlan) {
+            return res.status(400).json({ message: "Plan not found in database" });
+        }
+        const pricingMap = {
+            monthly: Number(dbPlan.monthlyPrice),
+            "6months": Number(dbPlan.sixMonthPrice),
+            "1year": Number(dbPlan.yearlyPrice),
+        };
+        const baseAmount = pricingMap[period];
         const canApplyCoupon = period === "1year";
         const { discountAmount, gstAmount, finalAmount, amountInPaise: expectedAmountInPaise, } = calculatePaymentBreakdown(baseAmount, couponApplied && canApplyCoupon);
         if (order.amount !== expectedAmountInPaise) {
@@ -318,7 +339,8 @@ router.post("/verify-payment", auth_1.authenticate, async (req, res) => {
             })
                 .where((0, drizzle_orm_1.eq)(schema_1.users.id, userId));
         }
-        // Record transaction
+        // Record transaction using the ACTUAL amount paid from Razorpay
+        const realFinalAmount = Number(payment.amount) / 100;
         try {
             await db_1.db.insert(schema_1.transactions).values({
                 userId,
@@ -327,7 +349,7 @@ router.post("/verify-payment", auth_1.authenticate, async (req, res) => {
                 baseAmount: baseAmount.toFixed(2),
                 discountAmount: discountAmount.toFixed(2),
                 gstAmount: gstAmount.toFixed(2),
-                finalAmount: finalAmount.toFixed(2),
+                finalAmount: realFinalAmount.toFixed(2), // Authoritative paid amount
                 razorpayOrderId,
                 razorpayPaymentId,
                 couponUsed: couponApplied ? (notes.couponCode || "coloursociety") : null,
@@ -336,7 +358,25 @@ router.post("/verify-payment", auth_1.authenticate, async (req, res) => {
         }
         catch (logErr) {
             console.error("Failed to log transaction:", logErr);
-            // Don't fail the verification if logging fails, but it's important
+        }
+        // Also update user snapshot with the real final amount
+        try {
+            await db_1.db
+                .update(schema_1.users)
+                .set({
+                planType,
+                subscriptionDuration: period,
+                renewalDate,
+                accountStatus: "active",
+                paymentBaseAmount: baseAmount.toFixed(2),
+                paymentDiscountAmount: discountAmount.toFixed(2),
+                paymentGstAmount: gstAmount.toFixed(2),
+                paymentFinalAmount: realFinalAmount.toFixed(2),
+            })
+                .where((0, drizzle_orm_1.eq)(schema_1.users.id, userId));
+        }
+        catch (userUpdErr) {
+            console.error("Failed to update user snapshot:", userUpdErr);
         }
         return res.json({
             success: true,

@@ -33,6 +33,10 @@ const userSchema = zod_1.z.object({
     couponCode: zod_1.z.string().optional(),
     couponDiscountAmount: zod_1.z.string().optional(),
     couponCreatedAt: zod_1.z.string().nullable().optional(),
+    paymentBaseAmount: zod_1.z.string().nullable().optional(),
+    paymentDiscountAmount: zod_1.z.string().nullable().optional(),
+    paymentGstAmount: zod_1.z.string().nullable().optional(),
+    paymentFinalAmount: zod_1.z.string().nullable().optional(),
 });
 // For updates, all fields optional
 const updateSchema = userSchema.partial();
