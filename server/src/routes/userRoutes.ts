@@ -173,6 +173,30 @@ router.put("/:id", async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Invalid user id" });
     }
 
+    // Fetch current user to check if payment is completed
+    const [existingUser] = await db
+      .select({ 
+        accountStatus: users.accountStatus,
+        paymentFinalAmount: users.paymentFinalAmount
+      })
+      .from(users)
+      .where(eq(users.id, id));
+
+    // A payment is considered completed if accountStatus is not 'pending_payment'
+    // and a final amount snapshot exists (captured during successful payment)
+    const isPaymentCompleted = 
+      existingUser?.accountStatus !== "pending_payment" && 
+      existingUser?.paymentFinalAmount;
+
+    if (isPaymentCompleted) {
+      // If payment is completed, prevent changing coupon/discount
+      if (req.body.couponCode !== undefined || req.body.couponDiscountAmount !== undefined) {
+        return res.status(403).json({
+          message: "Cannot modify coupon or discount for a completed payment."
+        });
+      }
+    }
+
     if (body.renewalDate) {
       body.renewalDate = new Date(body.renewalDate) as any;
     } else if (body.renewalDate === null) {

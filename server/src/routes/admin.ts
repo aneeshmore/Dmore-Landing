@@ -52,95 +52,82 @@ router.get(
   requireAdmin,
   async (req, res) => {
     try {
-      const registeredUsers = await db
-        .select()
-        .from(users)
-        .orderBy(desc(users.createdAt));
+      let registeredUsers: any[] = [];
 
-      // Fetch latest transaction for each user to get the permanent snapshot
-      const latestTransactions = await db
-        .select()
-        .from(transactions)
-        .orderBy(desc(transactions.createdAt));
-
-      const txMap: Record<number, any> = {};
-      latestTransactions.forEach(tx => {
-        const uId = Number(tx.userId);
-        if (!txMap[uId]) {
-          txMap[uId] = tx;
-        }
-      });
-
-      const allPlans = await db.select().from(plans);
-      const planMap: Record<string, any> = {};
-      allPlans.forEach(p => {
-        planMap[p.planType] = {
-          monthly: Number(p.monthlyPrice),
-          "6months": Number(p.sixMonthPrice),
-          "1year": Number(p.yearlyPrice),
-        };
-      });
-
-      const responseUsers = registeredUsers.map((user: any) => {
-        const userId = Number(user.id);
-        const latestTx = txMap[userId];
-
-        // 1. Determine Expiry Status
-        const now = new Date();
-        const renewalDate = user.renewalDate ? new Date(user.renewalDate) : null;
-        const isExpired = renewalDate ? renewalDate < now : false;
-
-        // 2. Determine payment status (Strict source of truth)
-        let paymentStatus: "pending" | "completed" | "failed" = "pending";
-        if (latestTx && latestTx.status === "completed") {
-          paymentStatus = "completed";
-        } else if (user.paymentFinalAmount && user.accountStatus !== "pending_payment") {
-          // Manual snapshot exists and not in a pending state
-          paymentStatus = "completed";
-        } else if (user.accountStatus === "disabled") {
-          paymentStatus = "failed";
+      try {
+        registeredUsers = await db
+          .select({
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            mobile: users.mobile,
+            companyName: users.companyName,
+            companyAddress: users.companyAddress,
+            role: users.role,
+            domain: users.domain,
+            databaseUrl: users.databaseUrl,
+            numberOfUsers: users.numberOfUsers,
+            planType: users.planType,
+            subscriptionDuration: users.subscriptionDuration,
+            accountStatus: users.accountStatus,
+            paymentBaseAmount: users.paymentBaseAmount,
+            paymentDiscountAmount: users.paymentDiscountAmount,
+            paymentGstAmount: users.paymentGstAmount,
+            paymentFinalAmount: users.paymentFinalAmount,
+            renewalDate: users.renewalDate,
+            isActive: users.isActive,
+            couponCode: users.couponCode,
+            couponDiscountAmount: users.couponDiscountAmount,
+            couponCreatedAt: users.couponCreatedAt,
+            createdAt: users.createdAt,
+          })
+          .from(users)
+          .orderBy(desc(users.createdAt));
+      } catch (error) {
+        if (!isMissingPaymentColumnError(error)) {
+          throw error;
         }
 
-        // 3. Derived User Status (Account Status + Expiry)
-        let displayAccountStatus = user.accountStatus;
-        if (isExpired && user.accountStatus !== "disabled") {
-          displayAccountStatus = "expired";
-        }
+        const fallbackUsers = await db
+          .select({
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            mobile: users.mobile,
+            companyName: users.companyName,
+            companyAddress: users.companyAddress,
+            role: users.role,
+            domain: users.domain,
+            databaseUrl: users.databaseUrl,
+            numberOfUsers: users.numberOfUsers,
+            planType: users.planType,
+            subscriptionDuration: users.subscriptionDuration,
+            accountStatus: users.accountStatus,
+            renewalDate: users.renewalDate,
+            isActive: users.isActive,
+            couponCode: users.couponCode,
+            couponDiscountAmount: users.couponDiscountAmount,
+            couponCreatedAt: users.couponCreatedAt,
+            createdAt: users.createdAt,
+          })
+          .from(users)
+          .orderBy(desc(users.createdAt));
 
-        // 4. Authoritative Active State (The Switch)
-        // Must have completed payment AND not be expired AND not be manually disabled
-        const isActive = paymentStatus === "completed" && !isExpired && user.accountStatus !== "disabled";
+        registeredUsers = fallbackUsers.map((entry) => ({
+          ...entry,
+          paymentBaseAmount: null,
+          paymentDiscountAmount: null,
+          paymentGstAmount: null,
+          paymentFinalAmount: null,
+        }));
+      }
 
-        // authoritative snapshot data
-        let baseAmount = latestTx ? latestTx.baseAmount : user.paymentBaseAmount;
-        let discountAmount = latestTx ? latestTx.discountAmount : user.paymentDiscountAmount;
-        let gstAmount = latestTx ? latestTx.gstAmount : user.paymentGstAmount;
-        let finalAmount = latestTx ? latestTx.finalAmount : user.paymentFinalAmount;
-
-        const paymentDate = latestTx 
-          ? latestTx.createdAt 
-          : (user.renewalDate || user.createdAt);
-
-        const transactionId = latestTx 
-          ? (latestTx.razorpayPaymentId || `TXN-${latestTx.id}`) 
-          : (paymentStatus === "completed" ? (user.paymentFinalAmount ? "MANUAL-SNAP" : "VERIFIED") : "N/A");
-
-        return {
-          ...user,
-          paymentStatus,
-          accountStatus: displayAccountStatus,
-          isActive,
-          // ONLY return values if they exist in DB snapshots. NEVER calculate from current plans.
-          paymentBaseAmount: baseAmount || (paymentStatus === "completed" ? "N/A" : null),
-          paymentDiscountAmount: discountAmount || (paymentStatus === "completed" ? "0.00" : null),
-          paymentGstAmount: gstAmount || (paymentStatus === "completed" ? "N/A" : null),
-          paymentFinalAmount: finalAmount || (paymentStatus === "completed" ? "N/A" : null),
-          paymentDate,
-          transactionId,
-        };
+      res.json({
+        users: registeredUsers.map((entry) => ({
+          ...entry,
+          paymentStatus: entry.renewalDate ? "completed" : "pending",
+        })),
       });
-
-      res.json({ users: responseUsers });
     } catch (error) {
       console.error("Error fetching users:", error);
       res.status(500).json({ message: "Server error" });
@@ -194,8 +181,13 @@ router.get("/transaction-summary", authenticate, requireAdmin, async (_req, res)
         renewalDate: users.renewalDate,
         paymentFinalAmount: users.paymentFinalAmount,
         couponDiscountAmount: users.couponDiscountAmount,
+        name: users.name,
+        companyName: users.companyName,
+        mobile: users.mobile,
         transactionCount: sql<number>`cast(count(${transactions.id}) as integer)`,
         totalSpentFromLogs: sql<string>`coalesce(sum(cast(${transactions.finalAmount} as numeric)), 0)`,
+        userCreatedAt: users.createdAt,
+        lastTransactionAt: sql<string>`max(${transactions.createdAt})`,
       })
       .from(users)
       .leftJoin(transactions, eq(users.id, transactions.userId))
@@ -206,18 +198,13 @@ router.get("/transaction-summary", authenticate, requireAdmin, async (_req, res)
         users.subscriptionDuration,
         users.accountStatus,
         users.renewalDate,
-        users.paymentFinalAmount
+        users.paymentFinalAmount,
+        users.createdAt,
+        users.name,
+        users.companyName,
+        users.mobile,
+        users.couponDiscountAmount
       );
-
-    const allPlans = await db.select().from(plans);
-    const planMap: Record<string, any> = {};
-    allPlans.forEach(p => {
-      planMap[p.planType] = {
-        monthly: Number(p.monthlyPrice),
-        "6months": Number(p.sixMonthPrice),
-        "1year": Number(p.yearlyPrice),
-      };
-    });
 
     const summary = rawSummary.map(row => {
       let spent = Number(row.totalSpentFromLogs);
@@ -230,11 +217,9 @@ router.get("/transaction-summary", authenticate, requireAdmin, async (_req, res)
         } else {
           const plan = (row.planType as string) || 'basic';
           const duration = (row.subscriptionDuration as string) || 'monthly';
-          const base = planMap[plan]?.[duration] || 0;
-          const discount = Number(row.couponDiscountAmount) || 0;
-          const subtotal = Math.max(base - discount, 0);
+          const base = PLAN_PRICING[plan]?.[duration] || 0;
           // Subtotal + 18% GST
-          spent = Number((subtotal * 1.18).toFixed(2));
+          spent = Number((base * 1.18).toFixed(2));
         }
         count = 1;
       }
@@ -245,8 +230,15 @@ router.get("/transaction-summary", authenticate, requireAdmin, async (_req, res)
         planType: row.planType,
         transactionCount: count,
         totalSpent: spent.toString(),
+        name: row.name,
+        companyName: row.companyName,
+        mobile: row.mobile,
+        effectiveTimestamp: row.lastTransactionAt ? new Date(row.lastTransactionAt) : (row.userCreatedAt ? new Date(row.userCreatedAt) : new Date(0)),
       };
     });
+
+    // Sort by latest transaction/activity first
+    summary.sort((a, b) => b.effectiveTimestamp.getTime() - a.effectiveTimestamp.getTime());
 
     res.json(summary);
   } catch (error) {
