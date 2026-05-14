@@ -904,33 +904,51 @@ const AdminDashboard = () => {
 
                         <td>
                           {entry.paymentStatus === "completed" ? (
-                            <div className="payment-details-cell completed">
-                              <div className="payment-details-row">
-                                <span>Base</span>
-                                <span>{formatCurrency(baseAmount)}</span>
-                              </div>
-                              <div className="payment-details-row">
-                                <span>Discount</span>
-                                <span>{formatCurrency(discountAmount)}</span>
-                              </div>
-                              <div className="payment-details-row">
-                                <span>GST (18%)</span>
-                                <span>{formatCurrency(gstAmount)}</span>
-                              </div>
-                              <div className="payment-details-row payment-details-final">
-                                <span>Final</span>
-                                <span>{formatCurrency(finalAmount)}</span>
-                              </div>
-                              <div className="payment-meta-info">
-                                <div className="meta-row">
-                                  <span>ID:</span>
-                                  <span className="meta-value">{entry.transactionId || "N/A"}</span>
+                            <div className="payment-details-cell completed expandable-card">
+                              <div className="payment-summary-view">
+                                <div className="summary-row">
+                                  <span className="summary-label">Total Amount Paid:</span>
+                                  <span className="summary-value">{formatCurrency(finalAmount)}</span>
                                 </div>
-                                <div className="meta-row">
-                                  <span>Date:</span>
-                                  <span className="meta-value">
-                                    {entry.paymentDate ? new Date(entry.paymentDate).toLocaleDateString() : "N/A"}
+                                <div className="summary-row">
+                                  <span className="summary-label">Date:</span>
+                                  <span className="summary-value">
+                                    {entry.paymentDate ? new Date(entry.paymentDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) : "N/A"}
                                   </span>
+                                </div>
+                              </div>
+                              
+                              <div className="payment-expanded-content">
+                                <div className="detail-divider"></div>
+                                <div className="detail-grid">
+                                  <div className="detail-item">
+                                    <span>Plan</span>
+                                    <strong>{planLabel}</strong>
+                                  </div>
+                                  <div className="detail-item">
+                                    <span>Base</span>
+                                    <span>{formatCurrency(baseAmount)}</span>
+                                  </div>
+                                  <div className="detail-item">
+                                    <span>Discount</span>
+                                    <span className="text-danger-custom">-{formatCurrency(discountAmount)}</span>
+                                  </div>
+                                  <div className="detail-item">
+                                    <span>GST</span>
+                                    <span>{formatCurrency(gstAmount)}</span>
+                                  </div>
+                                  <div className="detail-item total-highlight">
+                                    <span>Total Amount Paid</span>
+                                    <strong>{formatCurrency(finalAmount)}</strong>
+                                  </div>
+                                  <div className="detail-item meta">
+                                    <span>Tx ID</span>
+                                    <code>{entry.transactionId || "N/A"}</code>
+                                  </div>
+                                  <div className="detail-item meta">
+                                    <span>Payment Date</span>
+                                    <span>{entry.paymentDate ? new Date(entry.paymentDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) : "N/A"}</span>
+                                  </div>
                                 </div>
                               </div>
                             </div>
