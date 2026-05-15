@@ -746,6 +746,7 @@ const AdminDashboard = () => {
                   <tr>
                     <th>User</th>
                     <th>Mobile</th>
+                    <th>Machine ID</th>
                     <th>Company</th>
                     <th>Domain</th>
                     <th>Database URL</th>
@@ -812,6 +813,28 @@ const AdminDashboard = () => {
                         </td>
 
                         <td>{entry.mobile || "-"}</td>
+
+                        <td>
+                          {entry.machineId ? (
+                            <div className="machine-id-cell">
+                              <code className="machine-id-text" title={entry.machineId}>
+                                {entry.machineId}
+                              </code>
+                              <button 
+                                className="btn-copy-small"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(entry.machineId!);
+                                  showToast("Machine ID copied", "info");
+                                }}
+                                title="Copy Machine ID"
+                              >
+                                📋
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-muted-italics">—</span>
+                          )}
+                        </td>
 
                         <td>
                           {entry.companyName ? (

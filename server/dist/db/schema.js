@@ -58,6 +58,7 @@ exports.users = (0, pg_core_1.pgTable)("users", {
     updatedAt: (0, pg_core_1.timestamp)("updated_at", { withTimezone: true })
         .defaultNow()
         .$onUpdate(() => new Date()),
+    machineId: (0, pg_core_1.text)("machine_id"),
 });
 exports.plans = (0, pg_core_1.pgTable)("plans", {
     id: (0, pg_core_1.serial)("id").primaryKey(),

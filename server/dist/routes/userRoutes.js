@@ -133,6 +133,7 @@ router.get("/export", async (_req, res) => {
             accountStatus: user.accountStatus,
             renewalDate: user.renewalDate,
             createdAt: user.createdAt,
+            machineId: user.machineId,
         })));
         res.setHeader("Content-Type", "text/csv");
         res.setHeader("Content-Disposition", 'attachment; filename="users.csv"');
@@ -148,6 +149,26 @@ router.put("/:id", async (req, res) => {
         const id = Number(req.params.id);
         if (Number.isNaN(id)) {
             return res.status(400).json({ message: "Invalid user id" });
+        }
+        // Fetch current user to check if payment is completed
+        const [existingUser] = await db_1.db
+            .select({
+            accountStatus: schema_1.users.accountStatus,
+            paymentFinalAmount: schema_1.users.paymentFinalAmount
+        })
+            .from(schema_1.users)
+            .where((0, drizzle_orm_1.eq)(schema_1.users.id, id));
+        // A payment is considered completed if accountStatus is not 'pending_payment'
+        // and a final amount snapshot exists (captured during successful payment)
+        const isPaymentCompleted = existingUser?.accountStatus !== "pending_payment" &&
+            existingUser?.paymentFinalAmount;
+        if (isPaymentCompleted) {
+            // If payment is completed, prevent changing coupon/discount
+            if (req.body.couponCode !== undefined || req.body.couponDiscountAmount !== undefined) {
+                return res.status(403).json({
+                    message: "Cannot modify coupon or discount for a completed payment."
+                });
+            }
         }
         if (body.renewalDate) {
             body.renewalDate = new Date(body.renewalDate);

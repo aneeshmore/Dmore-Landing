@@ -153,6 +153,7 @@ router.get("/export", async (_req: Request, res: Response) => {
         accountStatus: user.accountStatus,
         renewalDate: user.renewalDate,
         createdAt: user.createdAt,
+        machineId: user.machineId,
       })),
     );
 

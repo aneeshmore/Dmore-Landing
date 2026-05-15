@@ -38,4 +38,5 @@ export interface User {
   couponCode?: string;
   couponDiscountAmount?: string;
   couponCreatedAt?: string;
+  machineId?: string;
 }

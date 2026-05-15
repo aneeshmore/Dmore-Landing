@@ -27,6 +27,7 @@ const authSafeUserSelection = {
   couponCreatedAt: users.couponCreatedAt,
   createdAt: users.createdAt,
   updatedAt: users.updatedAt,
+  machineId: users.machineId,
 };
 
 const listUserSelection = {
@@ -50,6 +51,7 @@ const listUserSelection = {
   couponCreatedAt: users.couponCreatedAt,
   createdAt: users.createdAt,
   updatedAt: users.updatedAt,
+  machineId: users.machineId,
 };
 
 export const findUserByEmail = async (email: string) => {

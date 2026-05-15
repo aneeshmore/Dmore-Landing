@@ -73,6 +73,7 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .$onUpdate(() => new Date()),
+  machineId: text("machine_id"),
 });
 
 

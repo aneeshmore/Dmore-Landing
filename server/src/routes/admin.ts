@@ -2,7 +2,7 @@
 
 import express from "express";
 import { desc, eq, sql } from "drizzle-orm";
-import { db } from "../db";
+import { db, pool } from "../db";
 import { users, plans, transactions } from "../db/schema";
 import { z } from "zod";
 import { AuthenticatedRequest, authenticate, requireAdmin } from "../middleware/auth";
@@ -54,6 +54,14 @@ router.get(
     try {
       let registeredUsers: any[] = [];
 
+      // [DIAGNOSTIC] Raw SQL query to check what's actually in the DB
+      try {
+        const rawRes = await pool.query('SELECT email, machine_id FROM users WHERE machine_id IS NOT NULL LIMIT 5');
+        console.log('[ADMIN-USERS] Raw SQL Machine ID Check:', JSON.stringify(rawRes.rows));
+      } catch (rawErr: any) {
+        console.warn('[ADMIN-USERS] Raw SQL Check Failed:', rawErr.message);
+      }
+
       try {
         registeredUsers = await db
           .select({
@@ -80,6 +88,7 @@ router.get(
             couponDiscountAmount: users.couponDiscountAmount,
             couponCreatedAt: users.couponCreatedAt,
             createdAt: users.createdAt,
+            machineId: users.machineId,
           })
           .from(users)
           .orderBy(desc(users.createdAt));
@@ -109,6 +118,7 @@ router.get(
             couponDiscountAmount: users.couponDiscountAmount,
             couponCreatedAt: users.couponCreatedAt,
             createdAt: users.createdAt,
+            machineId: users.machineId,
           })
           .from(users)
           .orderBy(desc(users.createdAt));
@@ -122,11 +132,19 @@ router.get(
         }));
       }
 
-      res.json({
-        users: registeredUsers.map((entry) => ({
+      const responseUsers = registeredUsers.map((entry) => {
+        console.log("[ADMIN-USERS] Raw Entry from DB:", JSON.stringify(entry));
+        const mid = entry.machineId || (entry as any).machine_id;
+        console.log("[ADMIN-USERS] Machine ID Resolved:", mid);
+        return {
           ...entry,
+          machineId: mid, 
           paymentStatus: entry.renewalDate ? "completed" : "pending",
-        })),
+        };
+      });
+
+      res.json({
+        users: responseUsers,
       });
     } catch (error) {
       console.error("Error fetching users:", error);
